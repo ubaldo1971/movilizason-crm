@@ -1,0 +1,59 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Distrito O1 - Hermosillo Centro"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-111.0, 29.1],
+            [-110.8, 29.1],
+            [-110.8, 28.9],
+            [-111.0, 28.9],
+            [-111.0, 29.1]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Distrito O2 - Hermosillo Norte"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-111.0, 29.3],
+            [-110.8, 29.3],
+            [-110.8, 29.1],
+            [-111.0, 29.1],
+            [-111.0, 29.3]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Distrito O3 - Hermosillo Sur"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-111.0, 28.9],
+            [-110.8, 28.9],
+            [-110.8, 28.7],
+            [-111.0, 28.7],
+            [-111.0, 28.9]
+          ]
+        ]
+      }
+    }
+  ]
+}

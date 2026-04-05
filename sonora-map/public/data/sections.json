@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Sección 001", "local": "Distrito Local 1", "federal": "Distrito Federal 1" },
+      "geometry": { "type": "Polygon", "coordinates": [[[ -111.0, 29.1 ], [ -110.95, 29.1 ], [ -110.95, 29.05 ], [ -111.0, 29.05 ], [ -111.0, 29.1 ]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Sección 002", "local": "Distrito Local 1", "federal": "Distrito Federal 1" },
+      "geometry": { "type": "Polygon", "coordinates": [[[ -110.95, 29.1 ], [ -110.9, 29.1 ], [ -110.9, 29.05 ], [ -110.95, 29.05 ], [ -110.95, 29.1 ]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Sección 003", "local": "Distrito Local 2", "federal": "Distrito Federal 1" },
+      "geometry": { "type": "Polygon", "coordinates": [[[ -110.9, 29.1 ], [ -110.85, 29.1 ], [ -110.85, 29.05 ], [ -110.9, 29.05 ], [ -110.9, 29.1 ]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Sección 004", "local": "Distrito Local 2", "federal": "Distrito Federal 1" },
+      "geometry": { "type": "Polygon", "coordinates": [[[ -110.85, 29.1 ], [ -110.8, 29.1 ], [ -110.8, 29.05 ], [ -110.85, 29.05 ], [ -110.85, 29.1 ]]] }
+    }
+  ]
+}

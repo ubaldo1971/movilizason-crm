@@ -1,0 +1,142 @@
+.alarm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: alarmFadeIn 0.3s ease;
+}
+
+.alarm-overlay.dismissing {
+  animation: alarmFadeOut 0.3s ease forwards;
+}
+
+.alarm-flash {
+  position: absolute;
+  inset: 0;
+  animation: alarmStrobe 0.15s infinite;
+}
+
+@keyframes alarmStrobe {
+  0% { background: rgba(255, 255, 255, 0.95); }
+  25% { background: rgba(180, 0, 45, 0.98); }
+  50% { background: rgba(0, 0, 0, 0.98); }
+  75% { background: rgba(220, 0, 60, 0.95); }
+  100% { background: rgba(255, 255, 255, 0.95); }
+}
+
+@keyframes alarmFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes alarmFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.alarm-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 2.5rem;
+  max-width: 400px;
+  text-align: center;
+}
+
+.alarm-icon-pulse {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: bellPulse 1s infinite;
+}
+
+@keyframes bellPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.3); }
+  50% { transform: scale(1.1); box-shadow: 0 0 40px 10px rgba(255, 255, 255, 0.15); }
+}
+
+.alarm-bell {
+  color: white;
+  animation: bellShake 0.4s infinite;
+}
+
+@keyframes bellShake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(15deg); }
+  75% { transform: rotate(-15deg); }
+}
+
+.alarm-badge {
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  padding: 0.5rem 1.25rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 100px;
+  color: white;
+}
+
+.alarm-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.alarm-text {
+  font-size: 1.125rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.alarm-due {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+}
+
+.alarm-dismiss-btn {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2.5rem;
+  background: white;
+  color: #800020;
+  font-size: 1.125rem;
+  font-weight: 800;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: transform 0.15s;
+  letter-spacing: 0.05em;
+}
+
+.alarm-dismiss-btn:hover {
+  transform: scale(1.05);
+}
+
+.alarm-dismiss-btn:active {
+  transform: scale(0.95);
+}
+
+.alarm-timer {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+}

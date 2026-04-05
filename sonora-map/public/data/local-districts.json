@@ -1,0 +1,15 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Distrito Local 1" },
+      "geometry": { "type": "Polygon", "coordinates": [[[ -111.0, 29.1 ], [ -110.9, 29.1 ], [ -110.9, 28.9 ], [ -111.0, 28.9 ], [ -111.0, 29.1 ]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Distrito Local 2" },
+      "geometry": { "type": "Polygon", "coordinates": [[[ -110.9, 29.1 ], [ -110.8, 29.1 ], [ -110.8, 28.9 ], [ -110.9, 28.9 ], [ -110.9, 29.1 ]]] }
+    }
+  ]
+}

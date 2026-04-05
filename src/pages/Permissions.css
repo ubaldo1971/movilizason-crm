@@ -1,0 +1,502 @@
+/* ═══════════════════════════════════════════════
+   PERMISSIONS PAGE
+   ═══════════════════════════════════════════════ */
+
+.permissions-page {
+  padding-bottom: 3rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Header */
+.perms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.perms-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.perms-header-icon {
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #ef4444, #991b1b);
+  border-radius: var(--radius-md);
+  color: white;
+}
+
+.perms-title {
+  font-size: 1.4rem;
+  margin: 0 0 0.15rem;
+}
+
+.perms-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.perms-header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Buttons */
+.perms-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.perms-btn.primary {
+  background: var(--color-primary);
+  color: white;
+}
+
+.perms-btn.primary:hover {
+  background: var(--color-primary-hover);
+  box-shadow: var(--shadow-glow);
+}
+
+.perms-btn.primary.saved {
+  background: #10b981;
+}
+
+.perms-btn.ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.perms-btn.ghost:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.perms-btn.danger {
+  background: #ef4444;
+  color: white;
+}
+
+.perms-btn.danger:hover {
+  background: #dc2626;
+}
+
+.perms-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Super Admin Note */
+.perms-sa-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  margin-bottom: 1rem;
+}
+
+.perms-sa-note svg {
+  color: #ef4444;
+  flex-shrink: 0;
+}
+
+/* PIN Toggle Card */
+.perms-toggle-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.perms-toggle-info h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.2rem;
+}
+
+.perms-toggle-info p {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.perms-toggle-switch {
+  width: 46px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--bg-surface-elevated);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.25s;
+  flex-shrink: 0;
+}
+
+.perms-toggle-switch.on {
+  background: #10b981;
+}
+
+.perms-toggle-knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: left 0.25s;
+}
+
+.perms-toggle-switch.on .perms-toggle-knob {
+  left: 25px;
+}
+
+/* Diagnostic Card */
+.perms-toggle-card.diagnostic {
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px dashed rgba(59, 130, 246, 0.3);
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.diagnostic-btn {
+  background: var(--bg-surface);
+  color: #3b82f6;
+  border: 1px solid #3b82f6;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.85rem;
+}
+
+.diagnostic-btn:hover {
+  background: #3b82f6;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.badge-new {
+  background: #10b981;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  animation: pulse-soft 2s infinite;
+}
+
+@keyframes pulse-soft {
+  0% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0.8; transform: scale(1); }
+}
+
+/* Role Summary Cards */
+.perms-role-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.perms-role-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.perms-role-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.perms-role-card-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.perms-role-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.perms-role-count {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.perms-role-bar {
+  height: 3px;
+  background: var(--bg-surface-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.perms-role-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+/* ═══════════════════════════════════════
+   PERMISSION MATRIX
+   ═══════════════════════════════════════ */
+.perms-matrix {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* Header Row */
+.perms-matrix-header {
+  display: grid;
+  grid-template-columns: 1.8fr repeat(5, 1fr);
+  background: rgba(255,255,255,0.02);
+  border-bottom: 2px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.perms-matrix-label-cell {
+  padding: 0.75rem 1rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.perms-matrix-role-cell {
+  padding: 0.625rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+}
+
+.perms-matrix-role-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.perms-matrix-role-name {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  line-height: 1.15;
+}
+
+/* Category */
+.perms-matrix-category {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.perms-matrix-category:last-child {
+  border-bottom: none;
+}
+
+.perms-matrix-cat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.625rem 1rem;
+  background: rgba(128, 0, 32, 0.03);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.perms-matrix-cat-header:hover {
+  background: rgba(128, 0, 32, 0.06);
+}
+
+.perms-matrix-cat-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.perms-matrix-cat-count {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* Row */
+.perms-matrix-row {
+  display: grid;
+  grid-template-columns: 1.8fr repeat(5, 1fr);
+  border-top: 1px solid rgba(255,255,255,0.03);
+  transition: background 0.1s;
+}
+
+.perms-matrix-row:hover {
+  background: rgba(255,255,255,0.02);
+}
+
+.perms-matrix-row .perms-matrix-label-cell {
+  padding: 0.5rem 1rem 0.5rem 2.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.perms-action-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.perms-action-desc {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+/* Checkbox Cell */
+.perms-matrix-check-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+}
+
+.perms-checkbox {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: 2px solid var(--border-color);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  transition: all 0.15s;
+}
+
+.perms-checkbox:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.perms-checkbox.checked {
+  background: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+.perms-checkbox.checked:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
+/* ═══════════════════════════════════════
+   RESET MODAL
+   ═══════════════════════════════════════ */
+.perms-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.perms-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  max-width: 400px;
+  text-align: center;
+}
+
+.perms-modal h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.perms-modal p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0 0 1.5rem;
+}
+
+.perms-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+/* ═══════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════ */
+@media (max-width: 900px) {
+  .perms-role-summary { grid-template-columns: repeat(3, 1fr); }
+  .perms-matrix-header,
+  .perms-matrix-row { grid-template-columns: 1.5fr repeat(5, 0.8fr); }
+  .perms-matrix-role-name { font-size: 0.5rem; }
+  .perms-action-label { font-size: 0.7rem; }
+  .perms-action-desc { display: none; }
+}
+
+@media (max-width: 600px) {
+  .perms-header { flex-direction: column; align-items: flex-start; }
+  .perms-role-summary { grid-template-columns: repeat(2, 1fr); }
+  .perms-matrix-header,
+  .perms-matrix-row { grid-template-columns: 1fr repeat(5, 0.6fr); }
+  .perms-matrix-role-name { font-size: 0.45rem; }
+  .perms-checkbox { width: 20px; height: 20px; }
+  .perms-matrix-row .perms-matrix-label-cell { padding-left: 1rem; }
+}
