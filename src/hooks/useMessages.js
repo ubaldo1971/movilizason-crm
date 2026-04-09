@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
   collection, query, where, orderBy, onSnapshot, addDoc, updateDoc,
-  doc, serverTimestamp, arrayUnion, getDocs, limit, setDoc, getDoc
+  doc, serverTimestamp, arrayUnion, arrayRemove, deleteDoc, getDocs, limit, setDoc, getDoc
 } from '../lib/dbService';
 import { db } from '../firebaseConfig';
 
@@ -193,5 +193,69 @@ export async function markAsRead(conversationId, userId) {
   // Reset unread count
   await updateDoc(doc(db, 'conversations', conversationId), {
     [`unreadCount.${userId}`]: 0
+  });
+}
+
+export async function toggleMute(conversationId, userId, isCurrentlyMuted) {
+  const convoRef = doc(db, 'conversations', conversationId);
+  if (isCurrentlyMuted) {
+    await updateDoc(convoRef, {
+      mutedBy: arrayRemove(userId)
+    });
+  } else {
+    await updateDoc(convoRef, {
+      mutedBy: arrayUnion(userId)
+    });
+  }
+}
+
+export async function leaveBrigade(conversationId, userId) {
+  const convoRef = doc(db, 'conversations', conversationId);
+  const convoDoc = await getDoc(convoRef);
+  const convoData = convoDoc.data();
+
+  // Remove from conversation participants
+  await updateDoc(convoRef, {
+    participants: arrayRemove(userId)
+  });
+
+  // If it's a brigade, also remove from the brigade document
+  if (convoData.type === 'brigade' && convoData.brigadeId) {
+    const brigadeRef = doc(db, 'brigades', convoData.brigadeId);
+    const brigadeDoc = await getDoc(brigadeRef);
+    if (brigadeDoc.exists()) {
+      const bData = brigadeDoc.data();
+      const memberToRemove = bData.members?.find(m => m.id === userId);
+      if (memberToRemove) {
+        await updateDoc(brigadeRef, {
+          members: arrayRemove(memberToRemove)
+        });
+      }
+      // If was leader, clear leader
+      if (bData.leader?.id === userId) {
+        await updateDoc(brigadeRef, { leader: null });
+      }
+    }
+  }
+
+  // Update user profile
+  await updateDoc(doc(db, 'users', userId), {
+    brigadeId: null,
+    brigadeName: 'Sin brigada'
+  });
+}
+
+export async function clearConversationMessages(conversationId) {
+  const msgsRef = collection(db, 'conversations', conversationId, 'messages');
+  const snapshot = await getDocs(msgsRef);
+  
+  // Note: For large chats, this should be a batch or a cloud function.
+  // For standard CRM usage, we delete the docs in parallel.
+  const deletions = snapshot.docs.map(d => deleteDoc(d.ref));
+  await Promise.all(deletions);
+
+  // Update last message
+  await updateDoc(doc(db, 'conversations', conversationId), {
+    lastMessage: { text: 'Historial vaciado', type: 'system', sentAt: new Date().toISOString() }
   });
 }

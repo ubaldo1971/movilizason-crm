@@ -1,18 +1,22 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   X, CheckCircle, AlertTriangle, Users, BarChart3, 
-  Camera, Film, ClipboardList, Info, Star, Save
+  Camera, Film, ClipboardList, Info, Star, Save, AlertCircle
 } from 'lucide-react';
 import { useScoringEngine } from '../hooks/useScoringEngine';
+import { useRole } from '../context/RoleContext';
+import EvidenceUploader from './EvidenceUploader';
 import './TaskCompletionModal.css';
 
 export default function TaskCompletionModal({ task, onConfirm, onCancel }) {
   const { config, calculateTaskScore } = useScoringEngine();
+  const { requireEvidence } = useRole();
   const [peopleCount, setPeopleCount] = useState(task.peopleCount || 0);
   const [complexityIndex, setComplexityIndex] = useState(task.complexityIndex || 1);
   const [activeBonuses, setActiveBonuses] = useState([]);
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState('SUCCESS'); // SUCCESS, WITH_ISSUES
+  const [photos, setPhotos] = useState([]);
 
   const scoreResult = useMemo(() => {
     return calculateTaskScore({
@@ -23,16 +27,62 @@ export default function TaskCompletionModal({ task, onConfirm, onCancel }) {
     });
   }, [task.taskType, peopleCount, complexityIndex, activeBonuses, calculateTaskScore]);
 
+  // AUTO-BONUS DETECTION
+  useEffect(() => {
+    let newBonuses = [...activeBonuses];
+    const hasPhotoBonus = newBonuses.includes('b2');
+    const hasBaseBonus = newBonuses.includes('b5');
+
+    // Photo bonus (+5%)
+    if (photos.length > 0 && !hasPhotoBonus) {
+      newBonuses.push('b2');
+    } else if (photos.length === 0 && hasPhotoBonus) {
+      newBonuses = newBonuses.filter(id => id !== 'b2');
+    }
+
+    // Base/Report bonus (+10%) - requires 20+ chars of notes
+    if (notes.trim().length >= 20 && !hasBaseBonus) {
+      newBonuses.push('b5');
+    } else if (notes.trim().length < 20 && hasBaseBonus) {
+      newBonuses = newBonuses.filter(id => id !== 'b5');
+    }
+
+    if (JSON.stringify(newBonuses) !== JSON.stringify(activeBonuses)) {
+      setActiveBonuses(newBonuses);
+    }
+  }, [photos, notes, activeBonuses]);
+
   const toggleBonus = (id) => {
+    // Prevent manual toggle for auto-detected bonuses
+    if (id === 'b2' || id === 'b5') return;
     setActiveBonuses(prev => 
       prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]
     );
   };
 
+  // AUTO-COMPLEXITY BASED ON PEOPLE COUNT
+  useEffect(() => {
+    let autoIndex = 1; // Default to Normal
+    if (peopleCount <= 10) autoIndex = 0; // Básica
+    else if (peopleCount <= 50) autoIndex = 1; // Normal
+    else if (peopleCount <= 500) autoIndex = 2; // Media
+    else if (peopleCount <= 5000) autoIndex = 3; // Alta
+    else autoIndex = 4; // Crítica
+
+    if (complexityIndex !== autoIndex) {
+      setComplexityIndex(autoIndex);
+    }
+  }, [peopleCount, complexityIndex]);
+
+  const isRequirementMet = !requireEvidence || photos.length > 0;
+
   const handleConfirm = () => {
+    if (!isRequirementMet) return;
+
     onConfirm({
       status: status === 'SUCCESS' ? 'COMPLETED' : 'WITH_ISSUES',
       notes,
+      photos,
       pointsEarned: scoreResult.total,
       details: {
         peopleCount,
@@ -42,6 +92,8 @@ export default function TaskCompletionModal({ task, onConfirm, onCancel }) {
       }
     });
   };
+
+  const currentLevel = config.complexity[complexityIndex] || config.complexity[1];
 
   return (
     <div className="completion-modal-overlay">
@@ -91,6 +143,9 @@ export default function TaskCompletionModal({ task, onConfirm, onCancel }) {
               {scoreResult.breakdown.scaleMultiplier > 1 && (
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>×{scoreResult.breakdown.scaleMultiplier} escala</span>
               )}
+              {scoreResult.breakdown.complexityMultiplier !== 1 && (
+                <span style={{ fontSize: '0.75rem', color: '#a855f7', fontWeight: 600 }}>×{scoreResult.breakdown.complexityMultiplier} dificultad</span>
+              )}
               {scoreResult.breakdown.bonusPercentage > 0 && (
                 <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>+{scoreResult.breakdown.bonusPercentage}% bonos</span>
               )}
@@ -98,7 +153,7 @@ export default function TaskCompletionModal({ task, onConfirm, onCancel }) {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-            {/* Scale - Only if enabled for this task type */}
+            {/* Scale */}
             <div style={{ gridColumn: 'span 2' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                 <Users size={14} /> Asistentes / Alcance Real
@@ -123,51 +178,65 @@ export default function TaskCompletionModal({ task, onConfirm, onCancel }) {
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>ppl</span>
                 </div>
               </div>
-              <div style={{ marginTop: '8px', fontSize: '0.75rem', color: '#a855f7', fontWeight: 600 }}>
-                Escala: {scoreResult.breakdown.scaleTier?.label || 'Micro'} (×{scoreResult.breakdown.scaleTier?.multiplier || 1.0})
+            </div>
+
+            {/* Complexity and Status */}
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Dificultad (Autocalculada)</label>
+              <div 
+                style={{ 
+                  padding: '10px 14px', 
+                  backgroundColor: 'var(--bg-surface-elevated)', 
+                  border: `1px solid ${currentLevel.color}40`,
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: currentLevel.color }}></div>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{currentLevel.level}</span>
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>×{currentLevel.multiplier}</span>
               </div>
             </div>
 
-            {/* Complexity */}
             <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                <BarChart3 size={14} /> Nivel de Dificultad
-              </label>
-              <select 
-                className="input" 
-                value={complexityIndex} 
-                onChange={(e) => setComplexityIndex(Number(e.target.value))}
-                style={{ width: '100%' }}
-              >
-                {config.complexity.map((c, i) => (
-                  <option key={c.id} value={i}>{c.level} (×{c.multiplier})</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Status */}
-            <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Resultado</label>
+              <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Resultado</label>
               <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-surface-elevated)', padding: '4px', borderRadius: '8px' }}>
                 <button 
                   onClick={() => setStatus('SUCCESS')}
-                  style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', background: status === 'SUCCESS' ? '#10b981' : 'transparent', color: status === 'SUCCESS' ? 'white' : 'var(--text-secondary)', fontWeight: status === 'SUCCESS' ? 'bold' : 'normal', transition: 'all 0.2s' }}
+                  style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', background: status === 'SUCCESS' ? '#10b981' : 'transparent', color: status === 'SUCCESS' ? 'white' : 'var(--text-secondary)' }}
                 >
                   Exitoso
                 </button>
                 <button 
                   onClick={() => setStatus('WITH_ISSUES')}
-                  style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', background: status === 'WITH_ISSUES' ? '#f59e0b' : 'transparent', color: status === 'WITH_ISSUES' ? 'white' : 'var(--text-secondary)', fontWeight: status === 'WITH_ISSUES' ? 'bold' : 'normal', transition: 'all 0.2s' }}
+                  style={{ flex: 1, padding: '8px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', background: status === 'WITH_ISSUES' ? '#f59e0b' : 'transparent', color: status === 'WITH_ISSUES' ? 'white' : 'var(--text-secondary)' }}
                 >
-                  Novedad
+                  Con Novedad
                 </button>
               </div>
             </div>
 
-            {/* Bonuses */}
+            {/* Evidence and Bonuses */}
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>Bonos y Evidencia</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
+              <EvidenceUploader 
+                onEvidenceAdded={setPhotos} 
+                label={requireEvidence ? "Cargar Evidencia (Obligatorio)" : "Cargar Evidencia (Opcional)"}
+                maxFiles={5}
+              />
+              {!isRequirementMet && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444', fontSize: '0.75rem', marginTop: '8px', fontWeight: 500 }}>
+                  <AlertCircle size={14} /> Se requiere al menos una fotografía para confirmar esta tarea.
+                </div>
+              )}
+            </div>
+
+            <div style={{ gridColumn: 'span 2' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>Bonificaciones de campo</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
                 {config.bonuses.map(bonus => {
                   const isActive = activeBonuses.includes(bonus.id);
                   return (
@@ -175,18 +244,14 @@ export default function TaskCompletionModal({ task, onConfirm, onCancel }) {
                       key={bonus.id}
                       onClick={() => toggleBonus(bonus.id)}
                       style={{ 
-                        display: 'flex', alignItems: 'center', gap: '12px', padding: '12px',
+                        display: 'flex', alignItems: 'center', gap: '8px', padding: '10px',
                         background: isActive ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-surface-elevated)',
                         border: isActive ? '1px solid #10b981' : '1px solid var(--border-color)',
-                        borderRadius: '12px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s'
+                        borderRadius: '10px', cursor: 'pointer'
                       }}
                     >
-                      <span style={{ fontSize: '1.25rem' }}>{bonus.icon}</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: isActive ? '#10b981' : 'var(--text-primary)' }}>{bonus.name}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>+{bonus.percentage}% bonus</div>
-                      </div>
-                      {isActive && <CheckCircle size={14} color="#10b981" />}
+                      <span>{bonus.icon}</span>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>{bonus.name}</div>
                     </button>
                   );
                 })}
@@ -195,11 +260,11 @@ export default function TaskCompletionModal({ task, onConfirm, onCancel }) {
 
             {/* Notes */}
             <div style={{ gridColumn: 'span 2' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Notas Finales</label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Notas de campo</label>
               <textarea 
                 className="input" 
-                placeholder="Describe brevemente el resultado de la tarea..."
-                rows={3}
+                placeholder="Detalles sobre el éxito de la tarea o novedades encontradas..."
+                rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 style={{ width: '100%', resize: 'none' }}
@@ -213,7 +278,12 @@ export default function TaskCompletionModal({ task, onConfirm, onCancel }) {
           <button 
             className="btn btn-primary" 
             onClick={handleConfirm}
-            style={{ padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+            disabled={!isRequirementMet}
+            style={{ 
+              padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', gap: '8px',
+              opacity: isRequirementMet ? 1 : 0.5,
+              cursor: isRequirementMet ? 'pointer' : 'not-allowed'
+            }}
           >
             <Save size={18} /> Confirmar y Ganar Tarea
           </button>

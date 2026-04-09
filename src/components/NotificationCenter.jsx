@@ -1,26 +1,36 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Bell, BellRing, BellOff, Shield, Smartphone, 
   CheckCircle, XCircle, AlertTriangle, Send, Volume2,
-  Globe, Zap, Settings
+  Globe, Zap, Settings, Inbox, ClipboardList, 
+  Award, MessageSquare, Clock
 } from 'lucide-react';
 import { useNotifications } from '../hooks/useNotifications';
 import './NotificationCenter.css';
 
-const CURRENT_USER_ID = 'ubaldo-super-admin'; // Will be replaced by auth
 
-export default function NotificationCenter({ isOpen, onClose }) {
+export default function NotificationCenter({ 
+  isOpen, 
+  onClose, 
+  notifications = [], 
+  markAsRead, 
+  markAllAsRead,
+  userId
+}) {
   const { 
     permission, 
     fcmToken, 
     isSupported, 
-    loading,
     requestPermission, 
     sendTestNotification,
     isEnabled 
-  } = useNotifications(CURRENT_USER_ID);
+  } = useNotifications(userId);
 
-  const [step, setStep] = useState('idle'); // idle | requesting | success | error
+  const navigate = useNavigate();
+
+  const [activeTab, setActiveTab] = useState('alerts'); // alerts | settings
+  const [step, setStep] = useState('idle'); 
   const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
@@ -43,8 +53,38 @@ export default function NotificationCenter({ isOpen, onClose }) {
     }
   };
 
-  const handleTest = () => {
-    sendTestNotification();
+  const handleNotificationClick = async (notif) => {
+    if (!notif.read && markAsRead) {
+      await markAsRead(notif.id);
+    }
+
+    if (notif.type === 'task') navigate('/tasks');
+    else if (notif.type === 'report') navigate('/reports');
+    else if (notif.type === 'medal' || notif.type === 'support') navigate('/performance');
+
+    onClose(); 
+  };
+
+  const formatTime = (timestamp) => {
+    if (!timestamp) return 'Reciente';
+    const date = timestamp?.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
+    const now = new Date();
+    const diff = Math.floor((now - date) / 1000 / 60);
+
+    if (diff < 1) return 'Ahora';
+    if (diff < 60) return `Hace ${diff} min`;
+    if (diff < 1440) return `Hace ${Math.floor(diff / 60)} h`;
+    return date.toLocaleDateString();
+  };
+
+  const getNotifIcon = (type) => {
+    switch (type) {
+      case 'task': return <ClipboardList size={20} />;
+      case 'report': return <AlertTriangle size={20} />;
+      case 'medal': return <Award size={20} />;
+      case 'support': return <MessageSquare size={20} />;
+      default: return <Bell size={20} />;
+    }
   };
 
   if (!isOpen) return null;
@@ -59,152 +99,188 @@ export default function NotificationCenter({ isOpen, onClose }) {
           </div>
           <div>
             <h3 className="notif-title">Centro de Notificaciones</h3>
-            <p className="notif-subtitle">Configuración de alertas push</p>
+            <p className="notif-subtitle">Alertas en tiempo real</p>
           </div>
           <button className="notif-close" onClick={onClose}>✕</button>
         </div>
 
-        {/* Status Banner */}
-        <div className={`notif-status-banner ${isEnabled ? 'enabled' : permission === 'denied' ? 'denied' : 'pending'}`}>
-          {isEnabled ? (
-            <>
-              <CheckCircle size={20} />
-              <span>Notificaciones push <strong>activas</strong></span>
-            </>
-          ) : permission === 'denied' ? (
-            <>
-              <XCircle size={20} />
-              <span>Notificaciones <strong>bloqueadas</strong> por el navegador</span>
-            </>
-          ) : (
-            <>
-              <AlertTriangle size={20} />
-              <span>Notificaciones push <strong>desactivadas</strong></span>
-            </>
-          )}
+        {/* Tabs */}
+        <div className="notif-tabs">
+          <button 
+            className={`notif-tab-btn ${activeTab === 'alerts' ? 'active' : ''}`}
+            onClick={() => setActiveTab('alerts')}
+          >
+            Alertas
+            {notifications.filter(n => !n.read).length > 0 && (
+              <span className="notif-badge-icon ml-1"></span>
+            )}
+          </button>
+          <button 
+            className={`notif-tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+          >
+            Configuración
+          </button>
         </div>
+
+        {activeTab === 'alerts' && (
+          <div className="notif-actions">
+            <span className="notif-item-time" style={{ margin: 0 }}>
+              {notifications.length} notificaciones
+            </span>
+            <button className="notif-action-btn" onClick={markAllAsRead}>
+              Marcar todas como leídas
+            </button>
+          </div>
+        )}
 
         {/* Content */}
         <div className="notif-content">
-          {!isSupported && (
-            <div className="notif-error-box">
-              <Globe size={32} />
-              <h4>Navegador no compatible</h4>
-              <p>Tu navegador no soporta notificaciones push. Usa Chrome, Edge, o Firefox para esta función.</p>
-            </div>
-          )}
-
-          {isSupported && !isEnabled && permission !== 'denied' && (
-            <div className="notif-cta-box">
-              <div className="notif-cta-icon-bg">
-                <BellRing size={40} className="notif-cta-icon" />
-              </div>
-              <h4>Activa las Notificaciones Push</h4>
-              <p>Recibe alertas instantáneas cuando te asignen tareas, te envíen mensajes o haya actualizaciones en tus brigadas.</p>
-              
-              <div className="notif-features">
-                <div className="notif-feature">
-                  <Zap size={16} color="#f59e0b" />
-                  <span>Alertas de tareas urgentes</span>
+          {activeTab === 'alerts' ? (
+            <div className="notif-list">
+              {notifications.length === 0 ? (
+                <div className="notif-empty">
+                  <Inbox size={48} className="opacity-20" />
+                  <p>No tienes notificaciones pendientes</p>
                 </div>
-                <div className="notif-feature">
-                  <Smartphone size={16} color="#3b82f6" />
-                  <span>Notificaciones en tu celular</span>
-                </div>
-                <div className="notif-feature">
-                  <Volume2 size={16} color="#10b981" />
-                  <span>Sonido + vibración para alarmas</span>
-                </div>
-              </div>
-
-              <button 
-                className="notif-enable-btn" 
-                onClick={handleEnable}
-                disabled={step === 'requesting'}
-              >
-                {step === 'requesting' ? (
-                  <>
-                    <div className="notif-spinner"></div>
-                    Solicitando permisos...
-                  </>
-                ) : (
-                  <>
-                    <Bell size={20} />
-                    Activar Notificaciones
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          {isSupported && permission === 'denied' && (
-            <div className="notif-error-box">
-              <BellOff size={32} />
-              <h4>Permisos Bloqueados</h4>
-              <p>Has bloqueado las notificaciones para este sitio. Para reactivarlas:</p>
-              <ol className="notif-instructions">
-                <li>Haz clic en el icono de candado 🔒 junto a la URL</li>
-                <li>Busca "Notificaciones"</li>
-                <li>Cambia de "Bloqueado" a "Permitir"</li>
-                <li>Recarga la página</li>
-              </ol>
-            </div>
-          )}
-
-          {isSupported && isEnabled && (
-            <div className="notif-success-box">
-              <div className="notif-success-icon-bg">
-                <CheckCircle size={40} className="notif-success-icon" />
-              </div>
-              <h4>¡Notificaciones Activas!</h4>
-              <p>Recibirás alertas instantáneas de:</p>
-              
-              <div className="notif-active-features">
-                <div className="notif-active-feature">
-                  <span className="notif-dot green"></span>
-                  Mensajes nuevos en tus conversaciones
-                </div>
-                <div className="notif-active-feature">
-                  <span className="notif-dot yellow"></span>
-                  Tareas asignadas a ti o tu brigada
-                </div>
-                <div className="notif-active-feature">
-                  <span className="notif-dot red"></span>
-                  Alertas urgentes con alarma de 30s
-                </div>
-                <div className="notif-active-feature">
-                  <span className="notif-dot blue"></span>
-                  Actualizaciones de desempeño
-                </div>
-              </div>
-
-              <button className="notif-test-btn" onClick={handleTest}>
-                <Send size={16} />
-                Enviar Notificación de Prueba
-              </button>
-
-              {fcmToken && (
-                <div className="notif-token-section">
-                  <button 
-                    className="notif-token-toggle"
-                    onClick={() => setShowToken(!showToken)}
+              ) : (
+                notifications.map(notif => (
+                  <div 
+                    key={notif.id} 
+                    className={`notif-item ${!notif.read ? 'unread' : ''}`}
+                    onClick={() => handleNotificationClick(notif)}
                   >
-                    <Settings size={14} />
-                    {showToken ? 'Ocultar Token FCM' : 'Ver Token FCM (debug)'}
-                  </button>
-                  {showToken && (
-                    <code className="notif-token-code">{fcmToken}</code>
-                  )}
-                </div>
+                    <div className={`notif-icon-box ${notif.type || 'default'}`}>
+                      {getNotifIcon(notif.type)}
+                    </div>
+                    <div className="notif-item-content">
+                      <div className="notif-item-title">{notif.title}</div>
+                      <div className="notif-item-body">{notif.body}</div>
+                      <div className="notif-item-time">
+                        <Clock size={10} style={{ display: 'inline', marginRight: '4px' }} />
+                        {formatTime(notif.timestamp)}
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
+          ) : (
+            <>
+              {!isSupported && (
+                <div className="notif-error-box">
+                  <Globe size={32} />
+                  <h4>Navegador no compatible</h4>
+                  <p>Tu navegador no soporta notificaciones push. Usa Chrome, Edge, o Firefox para esta función.</p>
+                </div>
+              )}
+
+              {isSupported && !isEnabled && permission !== 'denied' && (
+                <div className="notif-cta-box">
+                  <div className="notif-cta-icon-bg">
+                    <BellRing size={40} className="notif-cta-icon" />
+                  </div>
+                  <h4>Activa las Notificaciones Push</h4>
+                  <p>Recibe alertas instantáneas en tu dispositivo incluso si no estás usando la app.</p>
+                  
+                  <div className="notif-features">
+                    <div className="notif-feature">
+                      <Zap size={16} color="#f59e0b" />
+                      <span>Alertas de tareas urgentes</span>
+                    </div>
+                    <div className="notif-feature">
+                      <Smartphone size={16} color="#3b82f6" />
+                      <span>Notificaciones en tu celular</span>
+                    </div>
+                    <div className="notif-feature">
+                      <Volume2 size={16} color="#10b981" />
+                      <span>Sonido + vibración para alarmas</span>
+                    </div>
+                  </div>
+
+                  <button 
+                    className="notif-enable-btn" 
+                    onClick={handleEnable}
+                    disabled={step === 'requesting'}
+                  >
+                    {step === 'requesting' ? (
+                      <>
+                        <div className="notif-spinner"></div>
+                        Solicitando...
+                      </>
+                    ) : (
+                      <>
+                        <Bell size={20} />
+                        Activar Push
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {isSupported && permission === 'denied' && (
+                <div className="notif-error-box">
+                  <BellOff size={32} />
+                  <h4>Permisos Bloqueados</h4>
+                  <p>Has bloqueado las notificaciones. Para reactivarlas:</p>
+                  <ol className="notif-instructions">
+                    <li>Haz clic en el icono de candado 🔒</li>
+                    <li>Busca "Notificaciones" y activa "Permitir"</li>
+                    <li>Recarga la página</li>
+                  </ol>
+                </div>
+              )}
+
+              {isSupported && isEnabled && (
+                <div className="notif-success-box">
+                  <div className="notif-success-icon-bg">
+                    <CheckCircle size={40} className="notif-success-icon" />
+                  </div>
+                  <h4>¡Notificaciones Push Activas!</h4>
+                  <p>Recibirás alertas en tiempo real en este dispositivo.</p>
+                  
+                  <div className="notif-active-features">
+                    <div className="notif-active-feature">
+                      <span className="notif-dot green"></span>
+                      Tareas asignadas
+                    </div>
+                    <div className="notif-active-feature">
+                      <span className="notif-dot red"></span>
+                      Alertas ciudadanas críticas
+                    </div>
+                    <div className="notif-active-feature">
+                      <span className="notif-dot blue"></span>
+                      Reconocimientos y medallas
+                    </div>
+                  </div>
+
+                  <button className="notif-test-btn" onClick={() => sendTestNotification()}>
+                    <Send size={16} />
+                    Prueba de conexión
+                  </button>
+
+                  <div className="notif-token-section">
+                    <button 
+                      className="notif-token-toggle"
+                      onClick={() => setShowToken(!showToken)}
+                    >
+                      <Settings size={14} />
+                      {showToken ? 'Ocultar Debug info' : 'Ver Debug info (Token)'}
+                    </button>
+                    {showToken && (
+                      <code className="notif-token-code">{fcmToken}</code>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
         {/* Footer */}
         <div className="notif-footer">
           <Shield size={14} />
-          <span>Las notificaciones se envían de forma segura vía Firebase Cloud Messaging</span>
+          <span>Notificaciones protegidas vía LPE + Firebase Cloud Messaging</span>
         </div>
       </div>
     </div>

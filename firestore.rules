@@ -1,18 +1,41 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Reglas Operativas para MovilizaSon CRM
+    match /users/{userId} { allow read, write: if true; }
+    match /tasks/{taskId} { allow read, create, update: if true; allow delete: if false; }
+    match /messages/{messageId} { allow read, write: if true; }
+    match /evidence/{evidenceId} { allow read, write: if true; }
+    match /reports/{reportId} { allow read, write: if true; }
+    
+    // Catálogos y Datos Maestro
+    match /medalTypes/{id} { allow read: if true; allow write: if false; }
+    match /commitmentTypes/{id} { allow read: if true; allow write: if false; }
+    
+    // Gestión de Brigadas y Reconocimientos
+    match /awardedMedals/{id} { allow read, write: if true; }
+    match /brigades/{id} { allow read, write: if true; }
+    
+    // Configuración de la App (Permisos, etc.)
+    match /app_config/{id} { allow read, write: if true; }
+    match /voiceState/{id} { allow read, write: if true; }
+    match /typingStatus/{id} { allow read, write: if true; }
+    
+    // Nueva infraestructura de comunicación dinámica
+    match /comm_servers/{id} { allow read, write: if true; }
+    match /comm_channels/{id} { allow read, write: if true; }
+
+    // Mensajería entre usuarios (Conversaciones)
+    match /conversations/{convId} { 
+      allow read, write: if true; 
+      match /messages/{msgId} { allow read, write: if true; }
+    }
+
+    // Denegación por defecto para rutas no especificadas
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 5, 2);
+      allow read, write: if false;
     }
   }
 }

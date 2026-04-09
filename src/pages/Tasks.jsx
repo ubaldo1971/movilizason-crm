@@ -3,8 +3,9 @@ import { useRole } from '../context/RoleContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { getDocs, collection } from '../lib/dbService';
 import { db } from '../firebaseConfig';
-import { Plus, Clock, AlertCircle, CheckCircle2, ChevronRight, ChevronLeft, User, Calendar, X, Save, Search, UserPlus } from 'lucide-react';
+import { Plus, Clock, AlertCircle, CheckCircle2, ChevronRight, ChevronLeft, User, Calendar, X, Save, Search, UserPlus, Download } from 'lucide-react';
 import TaskCompletionModal from '../components/TaskCompletionModal';
+import { exportToCSV } from '../lib/exportService';
 
 export default function Tasks() {
   const { tasks, addTask, updateTaskStatus, completeTask, role, ROLES, ROLE_COLORS, currentUser } = useRole();
@@ -15,6 +16,30 @@ export default function Tasks() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState(null);
   const [newTask, setNewTask] = useState({ title: '', role: ROLES.BRIGADISTA, dueDate: '' });
+
+  const isAdmin = role === ROLES.SUPER_ADMIN || role === ROLES.ADMIN_ESTATAL;
+
+  const handleExportTasks = () => {
+    const headers = {
+      title: 'Tarea / Actividad',
+      assignee: 'Responsable',
+      role: 'Rol Destino',
+      statusLabel: 'Estado Actual',
+      dueDate: 'Fecha Límite',
+      completedLabel: 'Completada',
+      completedAt: 'Fecha Finalización',
+      pointsEarned: 'Puntos Otorgados'
+    };
+
+    const data = tasks.map(t => ({
+      ...t,
+      statusLabel: t.completed ? 'COMPLETADA' : (t.status || 'PENDIENTE'),
+      completedLabel: t.completed ? 'SÍ' : 'NO',
+      completedAt: t.completedAt ? new Date(t.completedAt).toLocaleString() : 'N/A'
+    }));
+
+    exportToCSV(data, 'Historial_Tareas_CRM', headers);
+  };
 
   // Load all users for the search once
   useEffect(() => {
@@ -35,7 +60,8 @@ export default function Tasks() {
     
     return allUsers.filter(u => {
       // Basic text search (Name, Surname, Section, Districts)
-      const nameMatch = `${u.displayName} ${u.surname}`.toLowerCase().includes(queryLower);
+      const fullName = `${u.displayName || ''}${u.surname ? ' ' + u.surname : ''}`.toLowerCase();
+      const nameMatch = fullName.includes(queryLower);
       const sectionMatch = u.section?.toLowerCase().includes(queryLower);
       const distFedMatch = u.distFederal?.toLowerCase().includes(queryLower);
       const distLocMatch = u.distLocal?.toLowerCase().includes(queryLower);
@@ -76,8 +102,18 @@ export default function Tasks() {
   ];
 
   const getTasksByStatus = (statusId) => {
-    if (statusId === 'COMPLETED') return tasks.filter(t => t.completed);
-    return tasks.filter(t => !t.completed && (t.status === statusId || (!t.status && statusId === 'PENDING')));
+    let filtered = tasks;
+
+    // Filter by user role/assignee if not admin
+    if (!isAdmin) {
+      filtered = tasks.filter(t => 
+        t.assigneeId === currentUser?.uid || 
+        (t.role === role && (!t.assigneeId || t.assigneeId === 'all'))
+      );
+    }
+
+    if (statusId === 'COMPLETED') return filtered.filter(t => t.completed);
+    return filtered.filter(t => !t.completed && (t.status === statusId || (!t.status && statusId === 'PENDING')));
   };
 
   const handleCreateTask = () => {
@@ -85,7 +121,7 @@ export default function Tasks() {
     addTask({
       title: newTask.title,
       role: selectedAssignee.role,
-      assignee: `${selectedAssignee.displayName} ${selectedAssignee.surname}`,
+      assignee: `${selectedAssignee.displayName || ''}${selectedAssignee.surname ? ' ' + selectedAssignee.surname : ''}`,
       assigneeId: selectedAssignee.uid,
       dueDate: newTask.dueDate || 'Sin fecha',
     });
@@ -95,21 +131,35 @@ export default function Tasks() {
     setSearchQuery('');
   };
 
-  const moveTask = (taskId, currentStatus, direction) => {
+  const moveTask = async (taskId, currentStatus, direction) => {
     const statusOrder = ['PENDING', 'IN_PROGRESS', 'COMPLETED'];
     const currentIndex = statusOrder.indexOf(currentStatus);
     const nextIndex = currentIndex + direction;
     
     if (nextIndex >= 0 && nextIndex < statusOrder.length) {
       const nextStatus = statusOrder[nextIndex];
+      const task = tasks.find(t => t.id === taskId);
       
       if (nextStatus === 'COMPLETED') {
-        const task = tasks.find(t => t.id === taskId);
+        // Security guard: only assignee or admin can complete
+        if (!isAdmin && task.assigneeId !== currentUser.uid) {
+          alert('Solo el responsable asignado puede finalizar esta tarea.');
+          return;
+        }
         setCompletingTask(task);
       } else {
-        updateTaskStatus(taskId, nextStatus);
+        // Optimistic UI could be added here, but for now just await the update
+        await updateTaskStatus(taskId, nextStatus);
       }
     }
+  };
+
+  const handleQuickComplete = (task) => {
+    if (!isAdmin && task.assigneeId !== currentUser.uid) {
+      alert('Solo el responsable asignado puede finalizar esta tarea.');
+      return;
+    }
+    setCompletingTask(task);
   };
 
   return (
@@ -120,11 +170,24 @@ export default function Tasks() {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Organización operativa de campo</p>
         </div>
         
-        {canCreateTasks && (
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            <Plus size={18} /> Nueva Tarea
-          </button>
-        )}
+        <div className="flex gap-3">
+          {isAdmin && (
+            <button 
+              className="btn flex items-center gap-2" 
+              style={{ background: 'var(--bg-surface-glass)', border: '1px solid var(--color-success-dim)', color: 'var(--color-success-light)' }}
+              onClick={handleExportTasks}
+              title="Exportar Historial Completo a CSV"
+            >
+              <Download size={18} />
+              <span>Exportar</span>
+            </button>
+          )}
+          {canCreateTasks && (
+            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+              <Plus size={18} /> Nueva Tarea
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex gap-6" style={{ flex: 1, overflowX: 'auto', paddingBottom: '1rem' }}>
@@ -149,7 +212,29 @@ export default function Tasks() {
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: ROLE_COLORS[task.role], backgroundColor: `${ROLE_COLORS[task.role]}15`, padding: '2px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
                         {task.role}
                       </span>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 items-center">
+                        {col.id !== 'COMPLETED' && (
+                          <button 
+                            onClick={() => handleQuickComplete(task)}
+                            className="btn btn-ghost" 
+                            style={{ 
+                              padding: '4px 8px', 
+                              fontSize: '0.7rem', 
+                              color: 'var(--color-success)', 
+                              background: 'var(--color-success-dim)',
+                              fontWeight: 700,
+                              borderRadius: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              marginRight: '8px'
+                            }}
+                            title="Finalizar tarea ahora"
+                          >
+                            <CheckCircle2 size={12} />
+                            <span>Finalizar</span>
+                          </button>
+                        )}
                         {col.id !== 'PENDING' && (
                           <button 
                             onClick={() => moveTask(task.id, col.id, -1)}
@@ -178,7 +263,7 @@ export default function Tasks() {
                     <div className="flex-col gap-2" style={{ marginTop: '1rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                       <div className="flex items-center gap-2">
                         <User size={14} className="text-muted" />
-                        <span>{task.assignee}</span>
+                        <span>{task.assignee?.replace(' undefined', '')}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Calendar size={14} className="text-muted" />
@@ -263,7 +348,7 @@ export default function Tasks() {
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >
                         <div className="flex-col">
-                          <span style={{ fontWeight: 600 }}>{u.displayName} {u.surname}</span>
+                          <span style={{ fontWeight: 600 }}>{u.displayName}{u.surname ? ' ' + u.surname : ''}</span>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.role} • Seccional {u.section}</span>
                         </div>
                         <UserPlus size={16} className="text-primary" />
@@ -280,7 +365,7 @@ export default function Tasks() {
                       <User size={20} />
                     </div>
                     <div className="flex-col">
-                      <span style={{ fontWeight: 700 }}>{selectedAssignee.displayName} {selectedAssignee.surname}</span>
+                      <span style={{ fontWeight: 700 }}>{selectedAssignee.displayName}{selectedAssignee.surname ? ' ' + selectedAssignee.surname : ''}</span>
                       <span style={{ fontSize: '0.7rem', color: ROLE_COLORS[selectedAssignee.role], textTransform: 'uppercase', fontWeight: 800 }}>{selectedAssignee.role}</span>
                     </div>
                   </div>

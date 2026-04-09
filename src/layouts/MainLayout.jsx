@@ -4,9 +4,10 @@ import {
   LayoutDashboard, Map, MessageSquare, ClipboardList, 
   UserPlus, FileCheck, AlertTriangle, Trophy, User, 
   LogOut, Shield, ChevronDown, Users, BarChart3, Bell, Scale, Swords,
-  Image as ImageIcon
+  Image as ImageIcon, Volume2
 } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
+import { useNotifications } from '../hooks/useNotifications';
 import NotificationCenter from '../components/NotificationCenter';
 import AlarmOverlay from '../components/AlarmOverlay';
 import { useAlarm } from '../hooks/useAlarm';
@@ -17,6 +18,7 @@ const navItems = [
   { path: '/dashboard', label: 'Inicio', icon: LayoutDashboard },
   { path: '/messages', label: 'Mensajes', icon: MessageSquare, badge: true },
   { path: '/territory', label: 'Territorio', icon: Map },
+  { path: '/communication', label: 'Comando Central', icon: Volume2 },
   { path: '/tasks', label: 'Tareas', icon: ClipboardList },
   { path: '/estructura', label: 'Estructura', icon: Users, highRankOnly: true },
   { path: '/brigades', label: 'Brigadas', icon: Swords },
@@ -31,14 +33,16 @@ const navItems = [
   { path: '/permissions', label: 'Permisos', icon: Shield, adminOnly: true },
 ];
 
-const MOCK_IDENTITIES = [
-  { id: 'admin_demo', name: 'Super Admin', role: 'Super Admin', pin: '000000' },
-  { id: 'u1', name: 'Carlos Ruiz', role: 'Coordinador Seccional', pin: '123456' },
-  { id: 'u2', name: 'María López', role: 'Brigadista / Operador', pin: '197171' }
-];
-
 export default function MainLayout() {
-  const { role, ROLES, currentUser, setCurrentUser, currentUserAssignments: assignments } = useRole();
+  const { 
+    role = 'Invitado', 
+    ROLES = {}, 
+    currentUser = {}, 
+    setCurrentUser = () => {}, 
+    updateProfile = async () => {},
+    allUsers = [], 
+    currentUserAssignments: assignments = {} 
+  } = useRole();
   const navigate = useNavigate();
   const location = useLocation();
   const [showRoleSelector, setShowRoleSelector] = useState(false);
@@ -46,12 +50,20 @@ export default function MainLayout() {
   const { isAlarming, alarmMessage, triggerAlarm, stopAlarm } = useAlarm();
   const dismissedAlarmIds = useRef(new Set());
   
-  const CURRENT_USER_ID = assignments?.userId || 'ubaldo-super-admin';
+  const CURRENT_USER_ID = currentUser?.uid || 'admin_demo';
+  const { 
+    notifications, 
+    unreadCount, 
+    markAsRead, 
+    markAllAsRead, 
+    clearNotification 
+  } = useNotifications(CURRENT_USER_ID);
+
   const { conversations } = useConversations(CURRENT_USER_ID, role, assignments);
 
   const isMessagesPage = location.pathname === '/messages';
 
-  // Global Alarm Monitor
+  // Global Alarm Monitor (Foreground Messages)
   useEffect(() => {
     if (conversations.length > 0) {
       // Find any conversation with an alarm that is NOT from the current user
@@ -85,6 +97,12 @@ export default function MainLayout() {
     navigate('/login');
   };
 
+  // Dynamic Identities for Simulator
+  const dynamicIdentities = [
+    { uid: 'admin_demo', displayName: 'Super', surname: 'Admin', role: 'Super Admin', pin: '000000' },
+    ...allUsers.filter(u => u.uid !== 'admin_demo').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5)
+  ];
+
   return (
     <div className="layout-container">
       {/* Sidebar - Desktop Only */}
@@ -96,11 +114,16 @@ export default function MainLayout() {
           </div>
           <div className="flex items-center gap-2">
             <button 
-              className="sidebar-bell-btn" 
+              className={`sidebar-bell-btn ${unreadCount > 0 ? 'bell-warning-blink' : ''}`} 
               onClick={() => setShowNotifications(true)}
-              title="Notificaciones Push"
+              title="Centro de Alertas"
+              style={{ position: 'relative' }}
             >
+
               <Bell size={18} />
+              {unreadCount > 0 && (
+                <span className="notification-badge-pulse">{unreadCount}</span>
+              )}
             </button>
             <span className="logo-badge">CRM</span>
           </div>
@@ -143,26 +166,21 @@ export default function MainLayout() {
             
             {showRoleSelector && (
               <div className="role-dropdown">
-                <div style={{ padding: '8px 12px', fontSize: '0.7rem', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)', marginBottom: '4px' }}>Simular Identidad</div>
-                {MOCK_IDENTITIES.map(u => (
+                <div style={{ padding: '8px 12px', fontSize: '0.7rem', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)', marginBottom: '4px' }}>Cambiar Rol (Demo)</div>
+                {Object.values(ROLES).map(r => (
                   <button 
-                    key={u.id}
-                    className={`role-option ${u.id === currentUser.uid ? 'active' : ''}`}
+                    key={r}
+                    className={`role-option ${role === r ? 'active' : ''}`}
                     onClick={() => { 
-                      const names = (u.name || '').split(' ');
-                      setCurrentUser({ 
-                        ...u, 
-                        uid: u.id, 
-                        displayName: names[0] || 'User', 
-                        surname: names.slice(1).join(' ') || '' 
-                      }); 
+                      if (currentUser?.uid) {
+                        updateProfile(currentUser.uid, { role: r });
+                      }
                       setShowRoleSelector(false); 
-                      if (u.role === ROLES.BRIGADISTA) navigate('/tasks');
+                      if (r === ROLES.BRIGADISTA && location.pathname !== '/tasks') navigate('/tasks');
                     }}
                   >
                     <div className="flex-col" style={{ alignItems: 'flex-start' }}>
-                      <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{u.name}</span>
-                      <span style={{ fontSize: '0.7rem' }}>{u.role}</span>
+                      <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{r}</span>
                     </div>
                   </button>
                 ))}
@@ -185,10 +203,15 @@ export default function MainLayout() {
             <span className="logo-text">MovilizaSon</span>
           </div>
           <button 
-            className="sidebar-bell-btn" 
+            className={`sidebar-bell-btn ${unreadCount > 0 ? 'bell-warning-blink' : ''}`} 
             onClick={() => setShowNotifications(true)}
+            style={{ position: 'relative' }}
           >
             <Bell size={20} />
+
+            {unreadCount > 0 && (
+              <span className="notification-badge-pulse">{unreadCount}</span>
+            )}
           </button>
         </header>
 
@@ -218,13 +241,16 @@ export default function MainLayout() {
         ))}
       </nav>
 
-      {/* Notification Center Modal */}
       <NotificationCenter 
         isOpen={showNotifications} 
         onClose={() => setShowNotifications(false)} 
+        notifications={notifications}
+        markAsRead={markAsRead}
+        markAllAsRead={markAllAsRead}
+        clearNotification={clearNotification}
+        userId={CURRENT_USER_ID}
       />
 
-      {/* Global Alarm Overlay */}
       {isAlarming && alarmMessage && (
         <AlarmOverlay message={alarmMessage} onDismiss={handleDismissAlarm} />
       )}

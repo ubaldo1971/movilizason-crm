@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "movilizason-crm-ubaldo"
+  },
   "targets": {},
   "etags": {}
 }

@@ -7,7 +7,7 @@ import {
   Zap, Users, Clock, Award
 } from 'lucide-react';
 import {
-  useScoringEngine, CATEGORIES,
+  useScoringEngine, CATEGORIES, calculateTaskScore,
   DEFAULT_TASK_TYPES, DEFAULT_SCALE_TIERS, DEFAULT_COMPLEXITY, DEFAULT_BONUSES
 } from '../hooks/useScoringEngine';
 import './TaskScoring.css';
@@ -412,10 +412,19 @@ function MultipliersTab({ scaleTiers, setScaleTiers, complexity, setComplexity, 
    TAB 3: SIMULADOR EN VIVO
    ═══════════════════════════════════════════════ */
 function SimulatorTab({ config }) {
-  const [selectedTask, setSelectedTask] = useState(config.taskTypes[0]?.id || 'asamblea');
+  const [selectedTask, setSelectedTask] = useState(config?.taskTypes?.[0]?.id || 'asamblea');
   const [selectedScale, setSelectedScale] = useState(0);
   const [selectedComplexity, setSelectedComplexity] = useState(1);
   const [selectedBonuses, setSelectedBonuses] = useState([]);
+
+  if (!config?.taskTypes?.length) {
+    return (
+      <div className="simulator-loading">
+        <div className="notif-spinner" />
+        <p>Cargando simulador...</p>
+      </div>
+    );
+  }
 
   const task = config.taskTypes.find(t => t.id === selectedTask);
   const result = calculateTaskScore(selectedTask, selectedScale, selectedComplexity, selectedBonuses, config);

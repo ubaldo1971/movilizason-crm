@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
-import { doc, setDoc, arrayUnion, serverTimestamp } from '../lib/dbService';
+import { 
+  doc, setDoc, arrayUnion, serverTimestamp, 
+  query, collection, where, orderBy, limit, onSnapshot, updateDoc 
+} from '../lib/dbService';
 import { app, db } from '../firebaseConfig';
 
 // VAPID key is generated in Firebase Console > Project Settings > Cloud Messaging
@@ -27,6 +30,76 @@ export function useNotifications(userId) {
     setPermission(Notification.permission);
     setLoading(false);
   }, []);
+
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch notifications real-time
+  useEffect(() => {
+    if (!userId) return;
+
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(20)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.read).length);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  const markAsRead = async (notificationId) => {
+    // Optimistic update
+    setNotifications(prev => prev.map(n => 
+      n.id === notificationId ? { ...n, read: true } : n
+    ));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+
+    try {
+      const docRef = doc(db, 'notifications', notificationId);
+      await updateDoc(docRef, { read: true });
+    } catch (err) {
+      console.error("Error marking notification as read:", err);
+      // Fallback: the onSnapshot will eventually correct it if it fails
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const unread = notifications.filter(n => !n.read);
+      if (unread.length === 0) return;
+      
+      // Optimistic update
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+
+      const updates = unread.map(n => 
+        updateDoc(doc(db, 'notifications', n.id), { read: true })
+      );
+      await Promise.all(updates);
+    } catch (err) {
+      console.error("Error marking all as read:", err);
+    }
+  };
+
+  const clearNotification = async (notificationId) => {
+    try {
+      // In a real app we might deleteDoc, but here we just update for simplicity
+      const docRef = doc(db, 'notifications', notificationId);
+      await updateDoc(docRef, { cleared: true });
+    } catch (err) {
+      console.error("Error clearing notification:", err);
+    }
+  };
 
   // Register Service Worker and initialize FCM
   const initializeFCM = useCallback(async () => {
@@ -212,6 +285,11 @@ export function useNotifications(userId) {
     isSupported,
     loading,
     latestNotification,
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    clearNotification,
     requestPermission,
     sendTestNotification,
     isEnabled: permission === 'granted' && !!fcmToken

@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useRole } from '../context/RoleContext';
 import { db } from '../firebaseConfig';
-import { doc, getDoc, setDoc } from '../lib/dbService';
-import { ChevronDown, ChevronUp, Edit2, Save, X, Users, AlertTriangle } from 'lucide-react';
+import { doc, getDoc, setDoc, updateDoc } from '../lib/dbService';
+import { 
+  ChevronDown, ChevronUp, Edit2, Save, X, Users, 
+  AlertTriangle, Plus, Trash2, MapPin, Settings, 
+  Info, Phone, MessageSquare, Volume2, Video
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useComms } from '../context/CommunicationContext';
+import { FEDERAL_DISTRICTS, LOCAL_DISTRICTS } from '../data/territoryData';
+import { collection, onSnapshot, arrayUnion } from '../lib/dbService';
+
+const formatName = (user) => {
+    if (!user) return 'Usuario';
+    return `${user.displayName || ''} ${user.surname || ''}`.trim() || user.email || 'Usuario';
+};
 
 const INITIAL_STRUCTURE = [
   { id: 'fed-1', name: 'Distrito Federal 1 (San Luis Río Colorado)', coordinator: 'Juan Pérez', substitute: 'María López', locales: [
@@ -43,7 +56,9 @@ const INITIAL_STRUCTURE = [
 ];
 
 export default function Estructura() {
-  const { role, ROLES, VALID_PINS } = useRole();
+  const { role, ROLES, VALID_PINS, allUsers, formatName, currentUser } = useRole();
+  const { joinVoiceChannel } = useComms();
+  const navigate = useNavigate();
   const [structure, setStructure] = useState(() => {
     const cached = localStorage.getItem('estructura_cache');
     return cached ? JSON.parse(cached) : INITIAL_STRUCTURE;
@@ -52,36 +67,46 @@ export default function Estructura() {
   const [tempStructure, setTempStructure] = useState([]);
   const [expandedFeds, setExpandedFeds] = useState({});
   const [isSyncing, setIsSyncing] = useState(true);
-  
-  // PIN Validation Modal
-  const [showPinModal, setShowPinModal] = useState(false);
   const [pin, setPin] = useState('');
-  const [pinError, setPinError] = useState('');
+  const [showPinModal, setShowPinModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [showRegistry, setShowRegistry] = useState(false);
+  const [allBrigades, setAllBrigades] = useState([]);
+  const [assigningUser, setAssigningUser] = useState(null); // User object being assigned
+  
+  // Search state for dropdowns
+  const [searchTerm, setSearchTerm] = useState({}); // { 'fedId-locId-roleType-idx': 'query' }
+  const [showDropdown, setShowDropdown] = useState(null); // 'fedId-locId-roleType-idx'
+
+  const unassignedUsers = allUsers.filter(u => {
+    const isAssigned = (u.assignments && Object.keys(u.assignments).length > 0) || u.brigadeId;
+    const hasPrivilegedRole = Object.values(ROLES).includes(u.role);
+    return !isAssigned && !hasPrivilegedRole;
+  });
 
   const canEdit = role === ROLES.SUPER_ADMIN || role === ROLES.ADMIN_ESTATAL;
 
   useEffect(() => {
-    let active = true;
-    const fetchStructure = async () => {
-      try {
-        const docRef = doc(db, 'config', 'estructura');
-        const docSnap = await getDoc(docRef);
-        if (active) {
-          if (docSnap.exists() && Array.isArray(docSnap.data().data)) {
-            const serverData = docSnap.data().data;
-            setStructure(serverData);
-            localStorage.setItem('estructura_cache', JSON.stringify(serverData));
-          }
-        }
-      } catch (err) {
-        console.error("Error loading structure:", err);
-      } finally {
-        if (active) setIsSyncing(false);
-      }
+    const loadStructure = async () => {
+        try {
+            const docRef = doc(db, 'settings', 'territorial_structure');
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                setStructure(snap.data().data);
+                localStorage.setItem('estructura_cache', JSON.stringify(snap.data().data));
+            }
+        } catch (e) { console.error(e); }
+        finally { setIsSyncing(false); }
     };
-    fetchStructure();
-    return () => { active = false; };
+    loadStructure();
+
+    // Fetch Brigades for quick assignment
+    const unsubBrigades = onSnapshot(collection(db, 'brigades'), (snapshot) => {
+        setAllBrigades(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => unsubBrigades();
   }, []);
 
   const toggleExpand = (id) => {
@@ -97,198 +122,804 @@ export default function Estructura() {
     setEditing(false);
   };
 
-  const handleChange = (fedId, locId, field, value) => {
-    setTempStructure(prev => {
-      const newStruct = [...prev];
-      const fedIndex = newStruct.findIndex(f => f.id === fedId);
-      if (fedIndex > -1) {
-        if (!locId) {
-          // Federal level change
-          newStruct[fedIndex] = { ...newStruct[fedIndex], [field]: value };
-        } else {
-          // Local level change
-          const locIndex = newStruct[fedIndex].locales.findIndex(l => l.id === locId);
-          if (locIndex > -1) {
-            newStruct[fedIndex].locales[locIndex] = { ...newStruct[fedIndex].locales[locIndex], [field]: value };
-          }
-        }
-      }
-      return newStruct;
-    });
+  const handleAddDistrict = () => {
+    const id = `fed-${tempStructure.length + 1}`;
+    setTempStructure([...tempStructure, { id, name: `Nuevo Distrito Federal ${tempStructure.length + 1}`, coordinator: '', substitute: '', locales: [] }]);
+  };
+
+  const handleRemoveDistrict = (id, locId = null) => {
+    let newStruct = JSON.parse(JSON.stringify(tempStructure));
+    if (locId) {
+        const fed = newStruct.find(f => f.id === id);
+        fed.locales = fed.locales.filter(l => l.id !== locId);
+    } else {
+        newStruct = newStruct.filter(f => f.id !== id);
+    }
+    setTempStructure(newStruct);
+  };
+
+  const handleAddLocal = (fedId) => {
+    const newStruct = JSON.parse(JSON.stringify(tempStructure));
+    const fed = newStruct.find(f => f.id === fedId);
+    const locId = `loc-${Math.random().toString(36).substr(2, 5)}`;
+    fed.locales.push({ id: locId, name: 'Nuevo Distrito Local', coordinator: '', substitute: '' });
+    setTempStructure(newStruct);
+  };
+
+  const handleRename = (id, locId, newName) => {
+    const newStruct = JSON.parse(JSON.stringify(tempStructure));
+    const fed = newStruct.find(f => f.id === id);
+    if (locId) {
+        const loc = fed.locales.find(l => l.id === locId);
+        loc.name = newName;
+    } else {
+        fed.name = newName;
+    }
+    setTempStructure(newStruct);
+  };
+
+  const handleAddSectionToLocal = (fedId, locId, sectionNum) => {
+    const newStruct = JSON.parse(JSON.stringify(tempStructure));
+    const fed = newStruct.find(f => f.id === fedId);
+    const loc = fed.locales.find(l => l.id === locId);
+    if (!loc.sections) loc.sections = [];
+    if (!loc.sections.includes(sectionNum)) loc.sections.push(sectionNum);
+    setTempStructure(newStruct);
+  };
+
+  const handleRemoveSectionFromLocal = (fedId, locId, sectionNum) => {
+    const newStruct = JSON.parse(JSON.stringify(tempStructure));
+    const fed = newStruct.find(f => f.id === fedId);
+    const loc = fed.locales.find(l => l.id === locId);
+    loc.sections = loc.sections.filter(s => s !== sectionNum);
+    setTempStructure(newStruct);
+  };
+
+  const handleRemovePerson = (fedId, locId, roleType, idx, sectionId = null) => {
+    const newStruct = JSON.parse(JSON.stringify(tempStructure));
+    const f = newStruct.find(item => item.id === fedId);
+    let p = f;
+    if (locId) p = f.locales.find(l => l.id === locId);
+    
+    if (sectionId) {
+        p.seccionales[sectionId].splice(idx, 1);
+    } else {
+        p[roleType].splice(idx, 1);
+    }
+    setTempStructure(newStruct);
   };
 
   const requestSave = () => {
-    setPin('');
-    setPinError('');
     setShowPinModal(true);
   };
 
   const executeSave = async () => {
-    if (!VALID_PINS.includes(pin)) {
-      setPinError('PIN Inválido o usuario no autorizado.');
-      return;
+    if (pin !== VALID_PINS.ADMIN_ESTATAL && pin !== VALID_PINS.SUPER_ADMIN) {
+        setPinError('PIN Incorrecto');
+        return;
     }
-    setPinError('');
+
     setSaving(true);
     try {
-      const docRef = doc(db, 'config', 'estructura');
-      await setDoc(docRef, { data: tempStructure });
+      await setDoc(doc(db, 'settings', 'territorial_structure'), { 
+        data: tempStructure,
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser.displayName
+      });
+
+      // Update user roles and assignments based on the new structure
+      const userUpdates = {};
+      tempStructure.forEach(fed => {
+        // Federal Coord
+        (fed.coordinators || []).forEach(name => {
+            if (name) userUpdates[name.trim().toLowerCase()] = { role: ROLES.COORD_FED, assignments: { fedId: fed.id } };
+        });
+        // Federal Substitute
+        (fed.substitutes || []).forEach(name => {
+            if (name) userUpdates[name.trim().toLowerCase()] = { role: ROLES.COORD_FED, assignments: { fedId: fed.id, isSubstitute: true } };
+        });
+
+        fed.locales.forEach(loc => {
+            // Local Coord
+            (loc.coordinators || []).forEach(name => {
+                if (name) userUpdates[name.trim().toLowerCase()] = { role: ROLES.COORD_LOC, assignments: { fedId: fed.id, locId: loc.id } };
+            });
+            // Local Substitute
+            (loc.substitutes || []).forEach(name => {
+                if (name) userUpdates[name.trim().toLowerCase()] = { role: ROLES.COORD_LOC, assignments: { fedId: fed.id, locId: loc.id, isSubstitute: true } };
+            });
+
+            // Seccionals
+            Object.entries(loc.seccionales || {}).forEach(([sId, names]) => {
+                names.forEach(name => {
+                    if (name) {
+                        userUpdates[name.trim().toLowerCase()] = { role: ROLES.COORD_SEC, assignments: { fedId: fed.id, locId: loc.id, sectionId: sId } };
+                    }
+                });
+            });
+        });
+      });
+
+      // Aplicar actualizaciones en Firestore
+      for (const [key, data] of Object.entries(userUpdates)) {
+        const foundUser = allUsers.find(u => `${u.displayName} ${u.surname || ''}`.trim().toLowerCase() === key);
+        if (foundUser) {
+            await updateDoc(doc(db, 'users', foundUser.uid || foundUser.id), {
+                role: data.role,
+                assignments: data.assignments,
+                inStructure: true,
+                updatedAt: new Date().toISOString()
+            });
+        }
+      }
+
       setStructure(tempStructure);
       localStorage.setItem('estructura_cache', JSON.stringify(tempStructure));
       setEditing(false);
       setShowPinModal(false);
-    } catch (err) {
-      console.error(err);
-      setPinError('Error de conexión al guardar.');
+      setPin('');
+      alert('¡Estructura y perfiles sincronizados con éxito!');
+    } catch (error) {
+      console.error("Error saving structure:", error);
+      alert('Error crítico al sincronizar la estructura.');
     } finally {
       setSaving(false);
     }
   };
+  
+  const handleConfirmQuickAssign = async (target) => {
+    // target: { type: 'FEDERAL'|'LOCAL'|'BRIGADE', targetId: string, roleType: 'coordinators'|'substitutes'|'member', fedId?: string }
+    const user = assigningUser;
+    if (!user) return;
 
-  const currentDisplay = editing ? tempStructure : structure;
+    setSaving(true);
+    try {
+        const userName = formatName(user);
+        const newStruct = JSON.parse(JSON.stringify(structure));
+
+        if (target.type === 'FEDERAL') {
+            const fed = newStruct.find(f => f.id === target.targetId);
+            if (!fed[target.roleType]) fed[target.roleType] = [];
+            fed[target.roleType].push(userName);
+
+            await setDoc(doc(db, 'settings', 'territorial_structure'), { data: newStruct }, { merge: true });
+            await updateDoc(doc(db, 'users', user.uid || user.id), {
+                role: ROLES.COORD_DISTRITAL_FED,
+                assignments: { fedId: target.targetId, isSubstitute: target.roleType === 'substitutes' },
+                inStructure: true,
+                updatedAt: new Date().toISOString()
+            });
+            setStructure(newStruct);
+        } 
+        else if (target.type === 'LOCAL') {
+            const fed = newStruct.find(f => f.id === target.fedId);
+            const loc = fed.locales.find(l => l.id === target.targetId);
+            if (!loc[target.roleType]) loc[target.roleType] = [];
+            loc[target.roleType].push(userName);
+
+            await setDoc(doc(db, 'settings', 'territorial_structure'), { data: newStruct }, { merge: true });
+            await updateDoc(doc(db, 'users', user.uid || user.id), {
+                role: ROLES.COORD_DISTRITAL_LOC,
+                assignments: { fedId: target.fedId, locId: target.targetId, isSubstitute: target.roleType === 'substitutes' },
+                inStructure: true,
+                updatedAt: new Date().toISOString()
+            });
+            setStructure(newStruct);
+        }
+        else if (target.type === 'BRIGADE') {
+            const brigadeRef = doc(db, 'brigades', target.targetId);
+            const brigade = allBrigades.find(b => b.id === target.targetId);
+            
+            await updateDoc(brigadeRef, {
+                members: arrayUnion({
+                    id: user.uid || user.id,
+                    name: userName,
+                    role: 'Brigadista',
+                    joinedAt: new Date().toISOString().split('T')[0]
+                })
+            });
+
+            await updateDoc(doc(db, 'users', user.uid || user.id), {
+                role: ROLES.BRIGADISTA,
+                brigadeId: target.targetId,
+                brigadeName: (brigade?.emoji || '') + ' ' + (brigade?.name || ''),
+                inStructure: false,
+                updatedAt: new Date().toISOString()
+            });
+        }
+
+        setAssigningUser(null);
+        alert('Asignación completada con éxito.');
+    } catch (error) {
+        console.error("Quick assign error:", error);
+        alert('Error al procesar la asignación.');
+    } finally {
+        setSaving(false);
+    }
+  };
+
+  const handleStartInternalCall = (userId) => {
+    // Navigate to communication page and automatically join the general comando channel
+    // In a real production app, this would trigger a DM call
+    joinVoiceChannel('comando', currentUser.uid);
+    navigate('/communication');
+  };
+
+  const handleStartPrivateChat = (userId) => {
+    navigate(`/messages?uid=${userId}`);
+  };
+
+  const handleSeedData = async () => {
+    if (confirm('¿Deseas crear los 5 registros demo en la base de datos?')) {
+        const { seedDemoUsers } = await import('../lib/dbService');
+        await seedDemoUsers();
+        alert('Registros demo creados con éxito.');
+    }
+  };
+
+  const renderPersonList = (fedId, locId, roleType, title, sectionId = null) => {
+    const isSuperAdmin = role === ROLES.SUPER_ADMIN;
+    let list = [];
+    
+    const fed = (editing ? tempStructure : structure).find(f => f.id === fedId);
+    if (fed) {
+        let parent = fed;
+        if (locId) parent = fed.locales.find(l => l.id === locId);
+        
+        if (parent) {
+            if (sectionId) {
+                list = (parent.seccionales && parent.seccionales[sectionId]) || [];
+            } else {
+                list = parent[roleType] || [];
+            }
+        }
+    }
+
+    return (
+      <div className="person-role-group" style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+        <div className="role-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{title}</span>
+          {editing && isSuperAdmin && (
+            <button 
+              className="btn-icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                const newStruct = JSON.parse(JSON.stringify(tempStructure));
+                const f = newStruct.find(item => item.id === fedId);
+                let p = f;
+                if (locId) p = f.locales.find(l => l.id === locId);
+                
+                if (sectionId) {
+                    if (!p.seccionales) p.seccionales = {};
+                    if (!p.seccionales[sectionId]) p.seccionales[sectionId] = [];
+                    p.seccionales[sectionId].push('');
+                } else {
+                    if (!p[roleType]) p[roleType] = [];
+                    p[roleType].push('');
+                }
+                setTempStructure(newStruct);
+              }}
+              style={{ padding: '2px', backgroundColor: 'var(--color-primary)', borderRadius: '4px', color: 'white' }}
+            >
+              <Plus size={14} />
+            </button>
+          )}
+        </div>
+        <div className="flex-col gap-2">
+          {list.length > 0 ? (
+            list.map((name, idx) => {
+              const matchedUser = name ? allUsers.find(u => formatName(u)?.toLowerCase() === name.toLowerCase()) : null;
+              
+              return (
+              <div key={idx} className="flex-col gap-1" style={{ 
+                backgroundColor: 'rgba(255,255,255,0.03)', 
+                padding: '10px', 
+                borderRadius: '12px', 
+                border: '1px solid var(--border-color)',
+                position: 'relative'
+              }}>
+                <div className="flex items-center gap-3">
+                  {/* Photo/Avatar */}
+                  <div style={{ position: 'relative' }}>
+                    <img 
+                      src={matchedUser?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'V')}&background=random&color=fff`} 
+                      alt=""
+                      style={{ width: '36px', height: '36px', borderRadius: '10px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+                    />
+                    {matchedUser && (
+                      <div style={{ 
+                        position: 'absolute', bottom: -2, right: -2, 
+                        width: '10px', height: '10px', borderRadius: '50%', 
+                        backgroundColor: 'var(--status-success)', border: '2px solid #1a1b1e' 
+                      }}></div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>{name || 'Vacante'}</div>
+                        {matchedUser && (
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{matchedUser.phone}</div>
+                        )}
+                    </div>
+                    {editing ? (
+                      <div className="flex-col">
+                        <input
+                          type="text"
+                          className="no-border-input"
+                          value={name}
+                          onFocus={() => setShowDropdown(`${fedId}-${locId}-${roleType}-${idx}-${sectionId}`)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const newStruct = JSON.parse(JSON.stringify(tempStructure));
+                            const f = newStruct.find(item => item.id === fedId);
+                            let p = f;
+                            if (locId) p = f.locales.find(l => l.id === locId);
+                            
+                            if (sectionId) p.seccionales[sectionId][idx] = val;
+                            else p[roleType][idx] = val;
+                            
+                            setTempStructure(newStruct);
+                            setSearchTerm(prev => ({ ...prev, [`${fedId}-${locId}-${roleType}-${idx}-${sectionId}`]: val }));
+                          }}
+                          placeholder="Nombre o seleccione..."
+                          style={{ background: 'transparent', border: 'none', color: 'white', fontSize: '0.9rem', width: '100%', outline: 'none', fontWeight: 600 }}
+                        />
+                        
+                        {showDropdown === `${fedId}-${locId}-${roleType}-${idx}-${sectionId}` && (
+                          <div className="card shadow-xl" style={{ 
+                            position: 'absolute', zIndex: 100, top: '100%', left: 0, right: 0, 
+                            maxHeight: '200px', overflowY: 'auto', backgroundColor: '#25262b', padding: '5px' 
+                          }}>
+                            {unassignedUsers
+                              .filter(u => formatName(u).toLowerCase().includes((searchTerm[`${fedId}-${locId}-${roleType}-${idx}-${sectionId}`] || '').toLowerCase()))
+                              .map(u => (
+                                <div 
+                                  key={u.uid} 
+                                  className="dropdown-item p-2 hover-bg flex items-center gap-2"
+                                  style={{ cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem' }}
+                                  onClick={() => {
+                                    const newStruct = JSON.parse(JSON.stringify(tempStructure));
+                                    const f = newStruct.find(item => item.id === fedId);
+                                    let p = f;
+                                    if (locId) p = f.locales.find(l => l.id === locId);
+                                    
+                                    const fullName = formatName(u);
+                                    if (sectionId) p.seccionales[sectionId][idx] = fullName;
+                                    else p[roleType][idx] = fullName;
+                                    
+                                    setTempStructure(newStruct);
+                                    setShowDropdown(null);
+                                  }}
+                                >
+                                  <img src={u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(formatName(u))}`} style={{ width: '24px', height: '24px', borderRadius: '50%' }} alt=""/>
+                                  {formatName(u)}
+                                </div>
+                              ))
+                            }
+                            <div className="p-2 border-t border-white-10 text-xs text-secondary" onClick={() => setShowDropdown(null)}>Cerrar</div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex-col">
+                        <span style={{ 
+                          fontSize: '0.9rem', 
+                          fontWeight: 600,
+                          color: name ? 'white' : 'var(--text-secondary)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: 'block'
+                        }}>
+                          {name || 'Vacante'}
+                        </span>
+                        {matchedUser?.phone && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Phone size={10} /> {matchedUser.phone}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {editing && isSuperAdmin && (
+                    <button 
+                      onClick={() => handleRemovePerson(fedId, locId, roleType, idx, sectionId)}
+                      style={{ color: 'var(--status-error)', opacity: 0.7, padding: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+
+                  {!editing && matchedUser && (
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={() => handleStartInternalCall(matchedUser.uid)}
+                        className="btn-icon"
+                        style={{ padding: '6px', color: 'var(--color-primary-light)', backgroundColor: 'rgba(168, 85, 247, 0.1)', borderRadius: '8px' }}
+                      >
+                        <Volume2 size={14} />
+                      </button>
+                      <button 
+                        onClick={() => handleStartPrivateChat(matchedUser.uid)}
+                        className="btn-icon"
+                        style={{ padding: '6px', color: 'var(--status-info)', backgroundColor: 'rgba(14, 165, 233, 0.1)', borderRadius: '8px' }}
+                      >
+                        <MessageSquare size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              );
+            })
+          ) : (
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Sin asignar</span>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex-col gap-6 animate-fade-in" style={{ paddingBottom: '3rem' }}>
       <header className="flex justify-between items-center flex-wrap gap-4">
         <div>
           <h1 style={{ fontSize: '1.5rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Users size={24} color="var(--color-primary-light)" />
-            Directorio: Estructura Estatal
-            {isSyncing && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '1rem' }} className="animate-pulse">Sincronizando...</span>}
+            <MapPin size={24} color="var(--color-primary-light)" />
+            Estructura Territorial
+            {isSyncing && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '1rem' }} className="animate-pulse">Cargando...</span>}
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Listado de Coordinaciones de los 7 Distritos Federales y 21 Distritos Locales.
+            Coordinación táctica de Distritos y Secciones via Comando Central.
           </p>
         </div>
-        {canEdit && !editing && (
-          <button className="btn" onClick={handleStartEdit} style={{ border: '1px solid var(--border-color)' }}>
-            <Edit2 size={16} /> Editar Directorio
+        <div className="flex gap-2">
+          {role === ROLES.SUPER_ADMIN && (
+            <button className="btn" onClick={handleSeedData} style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+              Crear Demo Users
+            </button>
+          )}
+          <button className="btn" onClick={() => setShowRegistry(!showRegistry)} style={{ border: '1px solid var(--border-color)', position: 'relative' }}>
+            <Users size={16} /> Registro General
+            {unassignedUsers.length > 0 && (
+                <span style={{ position: 'absolute', top: -5, right: -5, backgroundColor: 'var(--color-primary)', color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                    {unassignedUsers.length}
+                </span>
+            )}
           </button>
-        )}
-        {canEdit && editing && (
-          <div className="flex gap-3">
-            <button className="btn" onClick={handleCancelEdit} style={{ color: 'var(--status-error)' }}>
-              <X size={16} /> Cancelar
+          {canEdit && !editing && (
+            <button className="btn" onClick={handleStartEdit} style={{ border: '1px solid var(--border-color)' }}>
+              <Edit2 size={16} /> Editar
             </button>
-            <button className="btn btn-primary" onClick={requestSave}>
-              <Save size={16} /> Guardar Cambios
-            </button>
-          </div>
-        )}
+          )}
+          {editing && (
+            <>
+              {role === ROLES.SUPER_ADMIN && (
+                <button className="btn" onClick={handleAddDistrict} style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                  <Plus size={16} /> Distrito
+                </button>
+              )}
+              <button className="btn btn-primary" onClick={requestSave}>
+                <Save size={16} /> Sincronizar
+              </button>
+              <button className="btn" onClick={handleCancelEdit} style={{ color: 'var(--status-error)' }}>
+                <X size={16} /> Salir
+              </button>
+            </>
+          )}
+        </div>
       </header>
 
-      <div className="flex-col gap-4">
-        {currentDisplay && currentDisplay.map((fed) => {
+      <div className="flex gap-6 relative" style={{ minHeight: '80vh' }}>
+        <div className="flex-1">
+        {structure && structure.map((fed) => {
           const isExpanded = expandedFeds[fed.id];
+          const districtNum = fed.id.split('-')[1] || '?';
 
           return (
-            <div key={fed.id} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div 
+              key={fed.id} 
+              className="card animate-scale-in" 
+              style={{ 
+                padding: 0, 
+                overflow: 'hidden', 
+                borderLeft: '4px solid var(--color-primary)',
+                gridColumn: isExpanded ? '1 / -1' : 'auto',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                height: 'fit-content'
+              }}
+            >
               <div 
                 className="flex items-center justify-between" 
-                style={{ padding: '1rem 1.5rem', backgroundColor: 'var(--bg-surface-elevated)', borderBottom: isExpanded ? '1px solid var(--border-color)' : 'none', cursor: 'pointer' }}
-                onClick={() => !editing && toggleExpand(fed.id)}
+                style={{ 
+                  padding: '0.85rem 1.25rem', 
+                  backgroundColor: 'var(--bg-surface-elevated)', 
+                  cursor: 'pointer',
+                  borderBottom: isExpanded ? '1px solid var(--border-color)' : 'none'
+                }}
+                onClick={() => toggleExpand(fed.id)}
               >
-                <div className="flex-col gap-1 w-full flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 style={{ fontSize: '1.125rem', margin: 0, color: 'var(--text-primary)' }}>{fed.name}</h3>
+                <div className="flex items-center gap-4 flex-1">
+                  <div style={{ 
+                    width: '32px', 
+                    height: '32px', 
+                    borderRadius: '8px', 
+                    backgroundColor: 'rgba(168, 85, 247, 0.1)', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    border: '1px solid rgba(168, 85, 247, 0.2)',
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    color: '#a855f7'
+                  }}>
+                    {districtNum}
                   </div>
                   
-                  <div className="flex gap-4 flex-wrap" style={{ marginTop: '0.5rem' }}>
-                    <div style={{ flex: 1, minWidth: '200px' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Coordinador(a) Federal</span>
-                      {editing ? (
-                        <input className="input" type="text" value={fed.coordinator || ''} onChange={(e) => handleChange(fed.id, null, 'coordinator', e.target.value)} onClick={e => e.stopPropagation()} />
-                      ) : (
-                        <strong style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{fed.coordinator || '-- Vacante --'}</strong>
-                      )}
+                  <div className="flex-col flex-1">
+                    <div className="flex items-center gap-2">
+                       <h3 style={{ fontSize: '1rem', margin: 0, color: 'var(--color-primary-light)' }}>{fed.name}</h3>
                     </div>
-                    <div style={{ flex: 1, minWidth: '200px' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Suplente</span>
-                      {editing ? (
-                        <input className="input" type="text" value={fed.substitute || ''} onChange={(e) => handleChange(fed.id, null, 'substitute', e.target.value)} onClick={e => e.stopPropagation()} />
-                      ) : (
-                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{fed.substitute || '-- Vacante --'}</span>
-                      )}
-                    </div>
+                    
+                    {!isExpanded && (
+                       <div className="flex gap-4 mt-2">
+                        <div className="flex items-center gap-2" style={{ opacity: 0.8 }}>
+                          <Users size={12} color="#a855f7" />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{fed.coordinators?.[0] || 'Sin asignar'}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-center" style={{ padding: '0.5rem', cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); toggleExpand(fed.id); }}>
-                    {isExpanded ? <ChevronUp size={20} color="var(--text-secondary)" /> : <ChevronDown size={20} color="var(--text-secondary)" />}
+                <div className="flex items-center gap-3">
+                  {isExpanded && (
+                    <div className="flex gap-6 animate-fade-in" style={{ marginRight: '1rem' }}>
+                      {renderPersonList(fed.id, null, 'coordinators', 'C. Federal')}
+                      {renderPersonList(fed.id, null, 'substitutes', 'Suplente')}
+                    </div>
+                  )}
+                  <ChevronDown size={18} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: '0.3s', opacity: 0.5 }} />
                 </div>
               </div>
 
-              {isExpanded && fed.locales && (
-                <div className="flex-col" style={{ padding: '1rem 1.5rem', gap: '1rem', backgroundColor: 'var(--bg-surface)' }}>
-                  <h4 style={{ fontSize: '0.875rem', color: 'var(--color-primary-light)', margin: '0 0 0.5rem 0', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
-                    Distritos Locales Pertenecientes ({fed.locales.length})
-                  </h4>
-                  
-                  {fed.locales.map((loc) => (
-                    <div key={loc.id} className="flex gap-4 flex-wrap" style={{ padding: '0.75rem', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-md)' }}>
-                      <div style={{ flex: 1, minWidth: '150px', display: 'flex', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{loc.name}</span>
+              {isExpanded && (
+                <div style={{ padding: '1.25rem', backgroundColor: 'rgba(0,0,0,0.1)', borderTop: '1px solid var(--border-color)' }}>
+                  <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '0.75rem' }}>
+                    {fed.locales && fed.locales.map((loc) => (
+                      <div key={loc.id} className="card" style={{ padding: '0.75rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
+                        <div className="flex justify-between items-center mb-2">
+                          <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{loc.name}</span>
+                        </div>
+                        <div className="flex-col gap-4">
+                           <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                             {renderPersonList(fed.id, loc.id, 'coordinators', 'C. Local')}
+                             {renderPersonList(fed.id, loc.id, 'substitutes', 'Suplente')}
+                           </div>
+
+                           <div style={{ marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.75rem' }}>
+                             <div className="flex flex-wrap gap-2">
+                                {loc.sections && loc.sections.map(s => (
+                                    <div key={s} style={{ backgroundColor: 'var(--bg-surface-elevated)', padding: '6px', borderRadius: '8px', border: '1px solid var(--border-color)', minWidth: '120px' }}>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-primary-light)' }}>S. {s}</span>
+                                        </div>
+                                        {renderPersonList(fed.id, loc.id, null, 'Seccional', s)}
+                                    </div>
+                                ))}
+                             </div>
+                           </div>
+                        </div>
                       </div>
-                      <div style={{ flex: 1, minWidth: '150px' }}>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Coordinador(a) Local</span>
-                        {editing ? (
-                          <input className="input" type="text" value={loc.coordinator || ''} onChange={(e) => handleChange(fed.id, loc.id, 'coordinator', e.target.value)} style={{ padding: '0.4rem', fontSize: '0.85rem' }} />
-                        ) : (
-                          <span style={{ fontSize: '0.85rem', color: 'white' }}>{loc.coordinator || '-- Vacante --'}</span>
-                        )}
-                      </div>
-                      <div style={{ flex: 1, minWidth: '150px' }}>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Suplente</span>
-                        {editing ? (
-                          <input className="input" type="text" value={loc.substitute || ''} onChange={(e) => handleChange(fed.id, loc.id, 'substitute', e.target.value)} style={{ padding: '0.4rem', fontSize: '0.85rem' }} />
-                        ) : (
-                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{loc.substitute || '-- Vacante --'}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           );
         })}
+        </div>
+
+        {showRegistry && (
+          <aside className="card animate-fade-in" style={{ width: '300px', alignSelf: 'start', position: 'sticky', top: '1rem', maxHeight: 'calc(100vh - 100px)', overflowY: 'auto' }}>
+            <div className="flex justify-between items-center mb-4">
+                <h3 style={{ fontSize: '1rem', margin: 0 }}>Registro General</h3>
+                <button onClick={() => setShowRegistry(false)}><X size={14} /></button>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                Personas registradas sin cargo vigente.
+            </p>
+            <div className="flex-col gap-3">
+                {unassignedUsers.map(u => (
+                    <div key={u.uid} className="flex-col p-3 rounded-xl border border-white-5 hover-bg transition-all">
+                        <div className="flex items-center gap-3">
+                            <img src={u.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(formatName(u))}`} style={{ width: '32px', height: '32px', borderRadius: '8px' }} alt=""/>
+                            <div className="flex-1 min-w-0">
+                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>{formatName(u)}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{u.phone}</div>
+                            </div>
+                            <button 
+                                className="btn-icon" 
+                                style={{ color: 'var(--color-primary-light)', padding: '5px' }}
+                                onClick={() => setAssigningUser(u)}
+                                title="Asignar Cargo"
+                            >
+                                <Plus size={16} />
+                            </button>
+                        </div>
+                    </div>
+                ))}
+                {unassignedUsers.length === 0 && (
+                    <div className="text-center p-4 text-xs text-secondary italic">No hay nuevos registros</div>
+                )}
+            </div>
+          </aside>
+        )}
       </div>
 
-      {showPinModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, backdropFilter: 'blur(4px)' }}>
-          <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '350px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid var(--color-primary)' }}>
-            <div className="flex items-center gap-3">
-              <AlertTriangle color="var(--color-primary-light)" size={24} />
-              <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Validar Edición</h2>
-            </div>
-            
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
-              Ingresa tu PIN de administrador para guardar oficialmente los cambios en el directorio.
-            </p>
-
-            <div className="flex-col gap-2">
-              <input 
-                type="password" 
-                maxLength="4"
-                className="input" 
-                style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.5rem' }}
-                placeholder="••••" 
-                value={pin} 
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-                autoFocus
-              />
-              {pinError && <p style={{ color: 'var(--status-error)', fontSize: '0.75rem', margin: 0 }}>{pinError}</p>}
-            </div>
-
-            <div className="flex justify-end gap-3" style={{ marginTop: '0.5rem' }}>
-              <button className="btn" onClick={() => setShowPinModal(false)} disabled={saving} style={{ color: 'var(--text-secondary)' }}>Cancelar</button>
-              <button className="btn btn-primary" onClick={executeSave} disabled={pin.length < 4 || saving}>
-                {saving ? 'Guardando...' : 'Confirmar'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {assigningUser && (
+        <QuickAssignModal 
+            user={assigningUser}
+            structure={structure}
+            brigades={allBrigades}
+            onClose={() => setAssigningUser(null)}
+            onConfirm={handleConfirmQuickAssign}
+            loading={saving}
+        />
       )}
     </div>
   );
+}
+
+function QuickAssignModal({ user, structure, brigades, onClose, onConfirm, loading }) {
+    const [tab, setTab] = useState('FEDERAL'); // FEDERAL, LOCAL, BRIGADE
+    const [selectedFed, setSelectedFed] = useState('');
+    const [selectedLoc, setSelectedLoc] = useState('');
+    const [selectedBrigade, setSelectedBrigade] = useState('');
+    const [roleType, setRoleType] = useState('coordinators');
+
+    const handleConfirm = () => {
+        let target = { type: tab, roleType };
+        if (tab === 'FEDERAL') target.targetId = selectedFed;
+        if (tab === 'LOCAL') {
+            target.targetId = selectedLoc;
+            // Find which Fed this Loc belongs to
+            const fed = structure.find(f => f.locales.some(l => l.id === selectedLoc));
+            target.fedId = fed?.id;
+        }
+        if (tab === 'BRIGADE') target.targetId = selectedBrigade;
+
+        if (!target.targetId) {
+            alert('Por favor seleccione un destino.');
+            return;
+        }
+        onConfirm(target);
+    };
+
+    return (
+        <div className="modal-backdrop" style={{ zIndex: 2000 }}>
+            <div className="card animate-scale-in" style={{ maxWidth: '500px', width: '90%', padding: '0', overflow: 'hidden' }}>
+                <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-surface-elevated)' }}>
+                    <div className="flex items-center gap-3">
+                        <div style={{ backgroundColor: 'var(--color-primary)', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Edit2 size={20} color="white" />
+                        </div>
+                        <div>
+                            <h2 style={{ fontSize: '1.1rem', margin: 0 }}>Asignar Cargo</h2>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>{formatName(user)}</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="btn-icon"><X size={20} /></button>
+                </div>
+
+                <div style={{ padding: '1.5rem' }}>
+                    <div className="flex gap-2 mb-6" style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '12px' }}>
+                        {['FEDERAL', 'LOCAL', 'BRIGADE'].map(t => (
+                            <button 
+                                key={t}
+                                onClick={() => setTab(t)}
+                                style={{ 
+                                    flex: 1, padding: '10px', borderRadius: '8px', border: 'none', 
+                                    fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                                    backgroundColor: tab === t ? 'var(--color-primary)' : 'transparent',
+                                    color: tab === t ? 'white' : 'var(--text-secondary)',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                {t === 'FEDERAL' ? 'Distrito Fed' : t === 'LOCAL' ? 'Distrito Loc' : 'Brigada'}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex-col gap-4">
+                        {tab === 'FEDERAL' && (
+                            <div className="flex-col gap-2">
+                                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Seleccionar Distrito Federal</label>
+                                <select 
+                                    className="input" 
+                                    value={selectedFed} 
+                                    onChange={e => setSelectedFed(e.target.value)}
+                                    style={{ width: '100%', padding: '12px' }}
+                                >
+                                    <option value="">-- Seleccionar --</option>
+                                    {FEDERAL_DISTRICTS.map(d => (
+                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {tab === 'LOCAL' && (
+                            <div className="flex-col gap-2">
+                                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Seleccionar Distrito Local</label>
+                                <select 
+                                    className="input" 
+                                    value={selectedLoc} 
+                                    onChange={e => setSelectedLoc(e.target.value)}
+                                    style={{ width: '100%', padding: '12px' }}
+                                >
+                                    <option value="">-- Seleccionar --</option>
+                                    {LOCAL_DISTRICTS.map(d => (
+                                        <option key={d.id} value={d.id}>{d.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {tab === 'BRIGADE' && (
+                            <div className="flex-col gap-2">
+                                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Seleccionar Brigada</label>
+                                <select 
+                                    className="input" 
+                                    value={selectedBrigade} 
+                                    onChange={e => setSelectedBrigade(e.target.value)}
+                                    style={{ width: '100%', padding: '12px' }}
+                                >
+                                    <option value="">-- Seleccionar --</option>
+                                    {brigades.map(b => (
+                                        <option key={b.id} value={b.id}>{b.emoji} {b.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {tab !== 'BRIGADE' && (
+                            <div className="flex-col gap-2 mt-2">
+                                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Rol en el Distrito</label>
+                                <div className="flex gap-2">
+                                    <button 
+                                        className={`btn ${roleType === 'coordinators' ? 'btn-primary' : ''}`}
+                                        style={{ flex: 1, fontSize: '0.8rem' }}
+                                        onClick={() => setRoleType('coordinators')}
+                                    >
+                                        Coordinador
+                                    </button>
+                                    <button 
+                                        className={`btn ${roleType === 'substitutes' ? 'btn-primary' : ''}`}
+                                        style={{ flex: 1, fontSize: '0.8rem' }}
+                                        onClick={() => setRoleType('substitutes')}
+                                    >
+                                        Suplente
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div style={{ padding: '1.5rem', backgroundColor: 'var(--bg-surface-elevated)', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px' }}>
+                    <button className="btn" style={{ flex: 1 }} onClick={onClose} disabled={loading}>Cancelar</button>
+                    <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleConfirm} disabled={loading}>
+                        {loading ? 'Procesando...' : (
+                            <span className="flex items-center justify-center gap-2">
+                                <Save size={16} /> Confirmar Asignación
+                            </span>
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 }

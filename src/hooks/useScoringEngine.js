@@ -49,10 +49,10 @@ export const DEFAULT_COMPLEXITY = [
 // ─── DEFAULT BONUSES ──────────────────────────────
 export const DEFAULT_BONUSES = [
   { id: 'b1', name: 'Entrega a Tiempo', percentage: 20, condition: 'Completada antes del deadline', icon: '⏰' },
-  { id: 'b2', name: 'Evidencia Fotográfica', percentage: 10, condition: '3+ fotos del evento', icon: '📸' },
+  { id: 'b5', name: 'Evidencia Base / Reporte', percentage: 10, condition: 'Notas detalladas o reporte', icon: '📄' },
+  { id: 'b2', name: 'Evidencia Fotográfica', percentage: 5, condition: 'Al menos una fotografía', icon: '📸' },
   { id: 'b3', name: 'Evidencia en Video', percentage: 15, condition: 'Video de la actividad', icon: '🎥' },
   { id: 'b4', name: 'Lista de Asistencia', percentage: 10, condition: 'Lista verificable de asistentes', icon: '📝' },
-  { id: 'b5', name: 'Reporte Escrito', percentage: 5, condition: 'Informe detallado post-actividad', icon: '📄' },
 ];
 
 // ─── DEFAULT RANK THRESHOLDS ──────────────────────

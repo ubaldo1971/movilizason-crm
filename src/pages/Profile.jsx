@@ -1,10 +1,13 @@
 import { useRole } from '../context/RoleContext';
-import { User as UserIcon, Shield, Map, Settings, LogOut, Lock } from 'lucide-react';
+import { User as UserIcon, Shield, Map, Settings, LogOut, Lock, Award, Star, Zap, Trophy, Target, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import PhoneInputModal from '../components/PhoneInputModal';
 
 export default function Profile() {
-  const { role, ROLES, setRole } = useRole();
+  const { role, ROLES, currentUser, awardedMedals, updateProfile } = useRole();
   const navigate = useNavigate();
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '3rem', maxWidth: '600px', margin: '0 auto' }}>
@@ -13,11 +16,21 @@ export default function Profile() {
         <div style={{ width: '96px', height: '96px', borderRadius: '50%', backgroundColor: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', boxShadow: 'var(--shadow-glow)' }}>
           <UserIcon size={48} color="white" />
         </div>
-        <h1 style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>{role === ROLES.SUPER_ADMIN ? 'Ubaldo' : 'Usuario Demo'}</h1>
+        <h1 style={{ fontSize: '1.5rem', color: 'var(--text-primary)' }}>
+          {currentUser?.displayName || 'Usuario'} {currentUser?.surname || ''}
+        </h1>
         <p style={{ color: 'var(--color-primary-light)', fontSize: '0.875rem', fontWeight: 600 }}>{role}</p>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem', fontFamily: 'monospace' }}>
+          FOLIO: #{currentUser?.folio || '00000'}
+        </div>
         <div className="flex items-center justify-center gap-1" style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
           <Map size={14} /> Distrito 4, Hermosillo
         </div>
+        {currentUser.phone && (
+          <div className="flex items-center justify-center gap-2" style={{ marginTop: '0.5rem', color: 'var(--color-primary-light)', fontSize: '0.9rem', fontWeight: 600 }}>
+            <Phone size={14} /> {currentUser.phone}
+          </div>
+        )}
       </div>
 
       <div className="card glass-panel" style={{ padding: 0, overflow: 'hidden', marginBottom: '2rem' }}>
@@ -34,7 +47,11 @@ export default function Profile() {
           {Object.values(ROLES).map(r => (
             <button 
               key={r}
-              onClick={() => setRole(r)}
+              onClick={() => {
+                if (currentUser && currentUser.uid) {
+                  updateProfile(currentUser.uid, { role: r });
+                }
+              }}
               className="btn"
               style={{
                 width: '100%',
@@ -51,7 +68,53 @@ export default function Profile() {
         </div>
       </div>
 
+      <div className="card glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+        <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+          <Award size={18} color="var(--color-primary)" />
+          Mis Galardones
+        </h3>
+        {(!awardedMedals || awardedMedals.filter(m => m.userId === currentUser?.uid).length === 0) ? (
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '1rem' }}>
+            Aún no has recibido condecoraciones. ¡Sigue operando con éxito!
+          </p>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '1rem' }}>
+            {awardedMedals.filter(m => m.userId === currentUser?.uid).map((am, i) => (
+              <div 
+                key={i} 
+                className="flex-col items-center text-center p-2 glass-panel" 
+                style={{ borderRadius: '12px', border: `1px solid ${am.medalColor}44` }}
+                title={am.reason}
+              >
+                <div style={{ color: am.medalColor, marginBottom: '0.25rem' }}>
+                  <MedalIcon iconName={am.medalIcon} size={24} />
+                </div>
+                <div style={{ fontSize: '0.65rem', fontWeight: 700, lineHeight: 1.1 }}>{am.medalName}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <button 
+          className="btn" 
+          style={{ width: '100%', justifyContent: 'flex-start', padding: '1rem', border: 'none', borderBottom: '1px solid var(--border-color)', borderRadius: 0, backgroundColor: 'transparent' }}
+          onClick={() => setIsPhoneModalOpen(true)}
+        >
+          <Phone size={18} /> {currentUser?.phone ? 'Actualizar Teléfono' : 'Agregar Teléfono'}
+        </button>
+
+        {isPhoneModalOpen && (
+          <PhoneInputModal 
+            initialValue={currentUser.phone}
+            onSave={(newPhone) => {
+              updateProfile(currentUser.uid, { phone: newPhone });
+              setIsPhoneModalOpen(false);
+            }}
+            onCancel={() => setIsPhoneModalOpen(false)}
+          />
+        )}
         <button className="btn" style={{ width: '100%', justifyContent: 'flex-start', padding: '1rem', border: 'none', borderBottom: '1px solid var(--border-color)', borderRadius: 0, backgroundColor: 'transparent' }}>
           <Settings size={18} /> Configuración de Cuenta
         </button>
@@ -65,4 +128,16 @@ export default function Profile() {
 
     </div>
   );
+}
+
+function MedalIcon({ iconName, size = 18 }) {
+  switch (iconName) {
+    case 'Award': return <Award size={size} />;
+    case 'Star': return <Star size={size} />;
+    case 'Zap': return <Zap size={size} />;
+    case 'Shield': return <Shield size={size} />;
+    case 'Trophy': return <Trophy size={size} />;
+    case 'Target': return <Target size={size} />;
+    default: return <Award size={size} />;
+  }
 }

@@ -20,13 +20,23 @@ import TaskScoring from './pages/TaskScoring';
 import Brigades from './pages/Brigades';
 import SupportContainer from './pages/SupportContainer';
 
+import { useRole } from './context/RoleContext';
+
+function AuthGuard({ children }) {
+  const { currentUser } = useRole();
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
         
-        <Route path="/" element={<MainLayout />}>
+        <Route path="/" element={<AuthGuard><MainLayout /></AuthGuard>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="messages" element={<Messages />} />

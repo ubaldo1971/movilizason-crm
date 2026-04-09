@@ -2,93 +2,21 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRole } from '../context/RoleContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { useComms } from '../context/CommunicationContext';
 import {
   Users, Plus, Search, ChevronDown, ChevronUp, Edit3,
   Trash2, UserPlus, UserMinus, Shield, Crown, Star,
   Hash, MapPin, CheckCircle, X, Save, AlertTriangle,
-  BarChart3, Clock, MessageSquare, Eye, EyeOff, Lock, MessageCircle
+  BarChart3, Clock, MessageSquare, Eye, EyeOff, Lock, MessageCircle,
+  ArrowRightLeft, Phone, Volume2, Video
 } from 'lucide-react';
 import { 
-  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp 
+  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, arrayUnion, arrayRemove
 } from '../lib/dbService';
 import { db } from '../firebaseConfig';
+import { FEDERAL_DISTRICTS, LOCAL_DISTRICTS, getSectionsForDistrict } from '../data/territoryData';
+import TransferBrigadeModal from '../components/TransferBrigadeModal';
 import './Brigades.css';
-
-// ─── DEMO DATA (will be replaced by Firestore) ────
-const DEMO_BRIGADES = [
-  {
-    id: 'b1', name: 'Brigada Norte D3', emoji: '🛡️',
-    zone: 'Distrito 3 - Norte',
-    hierarchy: 'Coordinador Distrital Federal',
-    leader: { id: 'user-carlos', name: 'Carlos Ruiz', role: 'Coordinador Seccional' },
-    members: [
-      { id: 'user-2', name: 'Ana Gómez', role: 'Brigadista / Operador', joinedAt: '2026-03-15' },
-      { id: 'user-3', name: 'Pedro León', role: 'Brigadista / Operador', joinedAt: '2026-03-16' },
-      { id: 'user-4', name: 'Rosa Méndez', role: 'Brigadista / Operador', joinedAt: '2026-03-18' },
-      { id: 'user-5', name: 'Miguel Torres', role: 'Brigadista / Operador', joinedAt: '2026-03-20' },
-      { id: 'user-6', name: 'Laura Soto', role: 'Brigadista / Operador', joinedAt: '2026-03-22' },
-    ],
-    sections: ['0841', '0842', '0843'],
-    status: 'active',
-    createdAt: '2026-03-10',
-    stats: { tasksCompleted: 47, score: 88, pendingTasks: 3 }
-  },
-  {
-    id: 'b2', name: 'Brigada Sur D4', emoji: '⚔️',
-    zone: 'Distrito 4 - Sur',
-    hierarchy: 'Coordinador Distrital Local',
-    leader: { id: 'user-maria', name: 'María López', role: 'Coordinador Seccional' },
-    members: [
-      { id: 'user-7', name: 'José Herrera', role: 'Brigadista / Operador', joinedAt: '2026-03-12' },
-      { id: 'user-8', name: 'Diana Cruz', role: 'Brigadista / Operador', joinedAt: '2026-03-14' },
-      { id: 'user-9', name: 'Raúl Vega', role: 'Brigadista / Operador', joinedAt: '2026-03-17' },
-    ],
-    sections: ['1201', '1202'],
-    status: 'active',
-    createdAt: '2026-03-12',
-    stats: { tasksCompleted: 32, score: 76, pendingTasks: 5 }
-  },
-  {
-    id: 'b3', name: 'Fuerza Centro', emoji: '🔥',
-    zone: 'Distrito 2 - Centro',
-    hierarchy: 'Coordinador Seccional',
-    leader: { id: 'user-10', name: 'Fernando Reyes', role: 'Coordinador Seccional' },
-    members: [
-      { id: 'user-11', name: 'Patricia Luna', role: 'Brigadista / Operador', joinedAt: '2026-03-20' },
-      { id: 'user-12', name: 'Sergio Mora', role: 'Brigadista / Operador', joinedAt: '2026-03-22' },
-      { id: 'user-13', name: 'Carmen Estrada', role: 'Brigadista / Operador', joinedAt: '2026-03-24' },
-      { id: 'user-14', name: 'Andrés Quiroz', role: 'Brigadista / Operador', joinedAt: '2026-03-25' },
-      { id: 'user-15', name: 'Elena Guzmán', role: 'Brigadista / Operador', joinedAt: '2026-03-26' },
-      { id: 'user-16', name: 'Roberto Salas', role: 'Brigadista / Operador', joinedAt: '2026-03-27' },
-      { id: 'user-17', name: 'Daniela Ibarra', role: 'Brigadista / Operador', joinedAt: '2026-03-28' },
-    ],
-    sections: ['0315', '0316', '0317', '0318'],
-    status: 'active',
-    createdAt: '2026-03-18',
-    stats: { tasksCompleted: 61, score: 92, pendingTasks: 2 }
-  },
-  {
-    id: 'b4', name: 'Águilas Poniente', emoji: '🦅',
-    zone: 'Distrito 5 - Poniente',
-    hierarchy: 'Brigadista / Operador',
-    leader: null,
-    members: [
-      { id: 'user-18', name: 'Héctor Solís', role: 'Brigadista / Operador', joinedAt: '2026-03-30' },
-    ],
-    sections: ['1501'],
-    status: 'forming',
-    createdAt: '2026-03-28',
-    stats: { tasksCompleted: 3, score: 45, pendingTasks: 1 }
-  },
-];
-
-const AVAILABLE_USERS = [
-  { id: 'new-1', name: 'Gabriel Martínez', role: 'Brigadista / Operador' },
-  { id: 'new-2', name: 'Sofía Ramírez', role: 'Brigadista / Operador' },
-  { id: 'new-3', name: 'Enrique Padilla', role: 'Brigadista / Operador' },
-  { id: 'new-4', name: 'Valeria Campos', role: 'Coordinador Seccional' },
-  { id: 'new-5', name: 'Óscar Navarro', role: 'Brigadista / Operador' },
-];
 
 const STATUS_CONFIG = {
   active: { label: 'Activa', color: '#10b981', icon: CheckCircle },
@@ -100,6 +28,7 @@ const HIERARCHY_LEVELS = [
   { value: 'Admin Estatal', label: 'Admin Estatal', color: '#f97316' },
   { value: 'Coordinador Distrital Federal', label: 'Coordinador Distrital Federal', color: '#3b82f6' },
   { value: 'Coordinador Distrital Local', label: 'Coordinador Distrital Local', color: '#0ea5e9' },
+  { value: 'Coordinador Municipal', label: 'Coordinador Municipal', color: '#10b981' },
   { value: 'Coordinador Seccional', label: 'Coordinador Seccional', color: '#8b5cf6' },
   { value: 'Brigadista / Operador', label: 'Brigadista / Operador', color: '#eab308' },
 ];
@@ -107,17 +36,30 @@ const HIERARCHY_LEVELS = [
 const EMOJIS = ['🛡️', '⚔️', '🔥', '🦅', '⚡', '🏴', '🎯', '💪', '🚀', '🗡️', '🐺', '🦁'];
 
 export default function Brigades() {
-  const { role, ROLES } = useRole();
+  const { role, ROLES, allUsers, currentUser } = useRole();
   const { hasPermission } = usePermissions();
+  const { joinVoiceChannel } = useComms();
   const navigate = useNavigate();
-  const [brigades, setBrigades] = useState(DEMO_BRIGADES);
+  const [brigades, setBrigades] = useState([]);
   const [expandedBrigade, setExpandedBrigade] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingBrigade, setEditingBrigade] = useState(null);
   const [showAddMember, setShowAddMember] = useState(null);
+  const [transferringMember, setTransferringMember] = useState(null);
+  const [sourceBrigadeForTransfer, setSourceBrigadeForTransfer] = useState(null);
 
-  // Permission-based access using the hook
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'brigades'), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setBrigades(data);
+    });
+    return () => unsub();
+  }, []);
+
   const canCreate       = hasPermission(role, 'brigades.create');
   const canEdit         = hasPermission(role, 'brigades.edit');
   const canDelete       = hasPermission(role, 'brigades.delete');
@@ -126,165 +68,244 @@ export default function Brigades() {
   const canSetLeader    = hasPermission(role, 'brigades.set_leader');
   const canChangeStatus = hasPermission(role, 'brigades.change_status');
 
-  // Filter brigades
   const filteredBrigades = useMemo(() => {
+    if (!Array.isArray(brigades)) return [];
     if (!searchTerm) return brigades;
     const term = searchTerm.toLowerCase();
-    return brigades.filter(b =>
-      b.name.toLowerCase().includes(term) ||
-      b.zone?.toLowerCase().includes(term) ||
-      b.leader?.name.toLowerCase().includes(term) ||
-      b.members.some(m => m.name.toLowerCase().includes(term))
-    );
+    return brigades.filter(b => {
+      const nameMatch = b.name?.toLowerCase().includes(term) || false;
+      const zoneMatch = b.zone?.toLowerCase().includes(term) || false;
+      const leaderMatch = b.leader?.name?.toLowerCase().includes(term) || false;
+      const membersMatch = b.members?.some(m => m.name?.toLowerCase().includes(term)) || false;
+      return nameMatch || zoneMatch || leaderMatch || membersMatch;
+    });
   }, [brigades, searchTerm]);
 
-  // Stats
-  const totalMembers = brigades.reduce((sum, b) => sum + b.members.length + (b.leader ? 1 : 0), 0);
-  const activeBrigades = brigades.filter(b => b.status === 'active').length;
-  const avgScore = brigades.length
-    ? Math.round(brigades.reduce((sum, b) => sum + (b.stats?.score || 0), 0) / brigades.length)
-    : 0;
+  const totalMembers = useMemo(() => {
+    return brigades.reduce((acc, b) => {
+      const memberCount = (b.members?.length || 0) + (b.leader ? 1 : 0);
+      return acc + memberCount;
+    }, 0);
+  }, [brigades]);
 
-  // CRUD handlers
-  const handleCreateBrigade = (data) => {
-    const newBrigade = {
-      id: `b-${Date.now()}`,
-      ...data,
-      members: [],
-      leader: null,
-      createdAt: new Date().toISOString().split('T')[0],
-      stats: { tasksCompleted: 0, score: 0, pendingTasks: 0 },
-    };
-    setBrigades(prev => [...prev, newBrigade]);
-    setShowCreateModal(false);
-  };
+  const activeBrigades = useMemo(() => {
+    return brigades.filter(b => b.status === 'active').length;
+  }, [brigades]);
 
-  const handleDeleteBrigade = (id) => {
-    if (!canDelete) return;
-    setBrigades(prev => prev.filter(b => b.id !== id));
-    if (expandedBrigade === id) setExpandedBrigade(null);
-  };
+  const avgScore = useMemo(() => {
+    if (brigades.length === 0) return 0;
+    const totalScore = brigades.reduce((acc, b) => acc + (b.stats?.score || 0), 0);
+    return Math.round(totalScore / brigades.length);
+  }, [brigades]);
 
-  const handleUpdateBrigade = (id, updates) => {
-    setBrigades(prev => prev.map(b => b.id === id ? { ...b, ...updates } : b));
-  };
-
-  const handleAddMember = (brigadeId, user) => {
-    if (!canAddMembers) return;
-    setBrigades(prev => prev.map(b => {
-      if (b.id !== brigadeId) return b;
-      if (b.members.some(m => m.id === user.id)) return b;
-      return {
-        ...b,
-        members: [...b.members, { ...user, joinedAt: new Date().toISOString().split('T')[0] }]
+  const handleCreateBrigade = async (data) => {
+    try {
+      const newBrigade = {
+        ...data,
+        members: [],
+        leader: null,
+        createdAt: new Date().toISOString().split('T')[0],
+        stats: { tasksCompleted: 0, score: 0, pendingTasks: 0 },
       };
-    }));
+      await addDoc(collection(db, 'brigades'), newBrigade);
+      setShowCreateModal(false);
+      alert('¡Brigada creada con éxito!');
+    } catch (err) {
+      console.error("Error creating brigade:", err);
+      alert(`Error al crear brigada: ${err.message}`);
+    }
   };
 
-  const handleRemoveMember = (brigadeId, userId) => {
+  const handleDeleteBrigade = async (id) => {
+    if (!canDelete) return;
+    if (window.confirm('¿Estás seguro de eliminar esta brigada?')) {
+      await deleteDoc(doc(db, 'brigades', id));
+      if (expandedBrigade === id) setExpandedBrigade(null);
+    }
+  };
+
+  const handleUpdateBrigade = async (id, updates) => {
+    await updateDoc(doc(db, 'brigades', id), updates);
+  };
+
+  const handleAddMember = async (brigadeId, user) => {
+    if (!canAddMembers || !user) return;
+    const brigadeRef = doc(db, 'brigades', brigadeId);
+    const firstName = user.displayName || user.name || 'Usuario';
+    const lastName = user.surname || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+
+    await updateDoc(brigadeRef, {
+      members: arrayUnion({
+        id: user.uid || user.id,
+        name: fullName,
+        role: user.role || 'Brigadista',
+        joinedAt: new Date().toISOString().split('T')[0]
+      })
+    });
+
+    const userId = user.uid || user.id;
+    const b = brigades.find(br => br.id === brigadeId);
+    if (userId && b) {
+      await updateDoc(doc(db, 'users', userId), {
+        brigadeId: b.id,
+        brigadeName: (b.emoji || '') + ' ' + (b.name || ''),
+        inStructure: false
+      });
+    }
+  };
+
+  const handleRemoveMember = async (brigadeId, member) => {
     if (!canRemoveMembers) return;
-    setBrigades(prev => prev.map(b => {
-      if (b.id !== brigadeId) return b;
-      return { ...b, members: b.members.filter(m => m.id !== userId) };
-    }));
+    if (!window.confirm(`¿Seguro que desea remover a ${member.name}?`)) return;
+    const brigadeRef = doc(db, 'brigades', brigadeId);
+    await updateDoc(brigadeRef, {
+      members: arrayRemove(member)
+    });
+
+    const userId = member.id || member.uid;
+    if (userId) {
+      await updateDoc(doc(db, 'users', userId), {
+        brigadeId: null,
+        brigadeName: 'Sin brigada'
+      });
+    }
   };
 
-  const handleSetLeader = (brigadeId, member) => {
+  const handleTransferExecute = async (member, targetBrigade) => {
+    try {
+      await updateDoc(doc(db, 'brigades', sourceBrigadeForTransfer.id), {
+        members: arrayRemove(member)
+      });
+      await updateDoc(doc(db, 'brigades', targetBrigade.id), {
+        members: arrayUnion({
+          ...member,
+          joinedAt: new Date().toISOString().split('T')[0]
+        })
+      });
+      const userId = member.id || member.uid;
+      if (userId) {
+        await updateDoc(doc(db, 'users', userId), {
+          brigadeId: targetBrigade.id,
+          brigadeName: targetBrigade.emoji + ' ' + targetBrigade.name
+        });
+      }
+      setTransferringMember(null);
+      setSourceBrigadeForTransfer(null);
+    } catch (err) {
+      console.error("Error executing transfer:", err);
+      alert("Error al ejecutar la transferencia");
+    }
+  };
+
+  const handleSetLeader = async (brigadeId, member) => {
     if (!canSetLeader) return;
-    setBrigades(prev => prev.map(b => {
-      if (b.id !== brigadeId) return b;
-      return { ...b, leader: { id: member.id, name: member.name, role: member.role } };
-    }));
+    await updateDoc(doc(db, 'brigades', brigadeId), {
+      leader: {
+        id: member.id,
+        name: member.name,
+        role: member.role || 'Líder de Brigada'
+      }
+    });
   };
 
   const getScoreColor = (score) => {
-    if (score >= 95) return '#a855f7';
-    if (score >= 85) return '#10b981';
-    if (score >= 70) return '#3b82f6';
-    if (score >= 55) return '#f59e0b';
+    if (score >= 90) return '#10b981';
+    if (score >= 75) return '#3b82f6';
+    if (score >= 50) return '#f59e0b';
     return '#ef4444';
   };
 
-  const getHierarchyColor = (hierarchy) => {
-    const found = HIERARCHY_LEVELS.find(h => h.value === hierarchy);
-    return found?.color || '#6b7280';
+  const getHierarchyColor = (h) => {
+    return HIERARCHY_LEVELS.find(l => l.value === h)?.color || 'var(--text-secondary)';
+  };
+
+  const handleStartInternalCall = (userId) => {
+    joinVoiceChannel('comando', currentUser.uid);
+    navigate('/communication');
+  };
+
+  const handleStartPrivateChat = (userId) => {
+    navigate(`/messages?uid=${userId}`);
+  };
+
+  const handleJoinBrigadeVoice = (brigadeId) => {
+    joinVoiceChannel(brigadeId, currentUser.uid);
+    navigate('/communication');
   };
 
   return (
-    <div className="brigades-page animate-fade-in">
-      {/* Header */}
-      <div className="brigades-header">
+    <div className="brigades-container animate-fade-in">
+      <header className="brigades-header">
         <div className="brigades-header-left">
           <div className="brigades-header-icon">
-            <Users size={24} />
+            <Shield size={28} />
           </div>
           <div>
-            <h1 className="brigades-title">Gestión de Brigadas</h1>
-            <p className="brigades-subtitle">Organización de equipos operativos de campo</p>
+            <h1 className="brigades-title">Cuerpos de Brigada</h1>
+            <p className="brigades-subtitle">Organiza equipos tácticos y supervisa su despliegue operativo.</p>
           </div>
         </div>
-        {canCreate && (
-          <button className="brigades-create-btn" onClick={() => setShowCreateModal(true)}>
-            <Plus size={18} />
-            <span>Nueva Brigada</span>
-          </button>
-        )}
-      </div>
 
-      {/* Stats Bar */}
+        <div className="brigades-header-actions">
+          <div className="brigades-search-bar">
+            <Search size={18} className="brigades-search-icon" />
+            <input
+              type="text"
+              className="brigades-search-input"
+              placeholder="Buscar brigada, líder o miembro..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          {canCreate && (
+            <button className="brigades-create-btn" onClick={() => setShowCreateModal(true)}>
+              <Plus size={18} /> Nueva Brigada
+            </button>
+          )}
+        </div>
+      </header>
+
       <div className="brigades-stats">
         <div className="brigades-stat">
-          <Users size={18} style={{ color: '#3b82f6' }} />
-          <div>
+          <div className="stat-info">
+            <span className="stat-label">Total Brigadas</span>
             <span className="stat-value">{brigades.length}</span>
-            <span className="stat-label">Brigadas</span>
           </div>
         </div>
         <div className="brigades-stat">
-          <Star size={18} style={{ color: '#10b981' }} />
-          <div>
-            <span className="stat-value">{activeBrigades}</span>
-            <span className="stat-label">Activas</span>
-          </div>
-        </div>
-        <div className="brigades-stat">
-          <UserPlus size={18} style={{ color: '#f59e0b' }} />
-          <div>
+          <div className="stat-info">
+            <span className="stat-label">Total Operadores</span>
             <span className="stat-value">{totalMembers}</span>
-            <span className="stat-label">Miembros</span>
           </div>
         </div>
         <div className="brigades-stat">
-          <BarChart3 size={18} style={{ color: '#a855f7' }} />
-          <div>
-            <span className="stat-value">{avgScore}%</span>
-            <span className="stat-label">Score Prom.</span>
+          <div className="stat-info">
+            <span className="stat-label">Brigadas Activas</span>
+            <span className="stat-value" style={{ color: '#10b981' }}>{activeBrigades}</span>
+          </div>
+        </div>
+        <div className="brigades-stat">
+          <div className="stat-info">
+            <span className="stat-label">Promedio Desempeño</span>
+            <span className="stat-value" style={{ color: getScoreColor(avgScore) }}>{avgScore}%</span>
           </div>
         </div>
       </div>
 
-      {/* Search */}
-      <div className="brigades-search-bar">
-        <Search size={16} className="brigades-search-icon" />
-        <input
-          className="brigades-search-input"
-          placeholder="Buscar brigada, zona o miembro..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {/* Brigades Grid */}
       <div className="brigades-grid">
-        {filteredBrigades.map(brigade => {
+        {filteredBrigades.map((brigade) => {
           const isExpanded = expandedBrigade === brigade.id;
-          const statusCfg = STATUS_CONFIG[brigade.status] || STATUS_CONFIG.active;
+          const statusCfg = STATUS_CONFIG[brigade.status] || STATUS_CONFIG.forming;
           const StatusIcon = statusCfg.icon;
 
           return (
-            <div key={brigade.id} className={`brigade-card ${isExpanded ? 'expanded' : ''}`}>
-              {/* Card Header */}
-              <div
+            <div 
+              key={brigade.id} 
+              className={`brigade-card ${isExpanded ? 'expanded' : ''}`}
+              style={{ borderTopColor: getHierarchyColor(brigade.hierarchy) }}
+            >
+              <div 
                 className="brigade-card-header"
                 onClick={() => setExpandedBrigade(isExpanded ? null : brigade.id)}
               >
@@ -293,43 +314,50 @@ export default function Brigades() {
                   <div>
                     <h3 className="brigade-name">{brigade.name}</h3>
                     <div className="brigade-meta">
-                      <span className="brigade-zone">
-                        <MapPin size={11} /> {brigade.zone}
-                      </span>
+                      {brigade.distritoFed && (
+                        <span className="brigade-meta-tag fed">
+                          <Shield size={10} /> {brigade.distritoFed.replace('fed-', 'DF ')}
+                        </span>
+                      )}
+                      {brigade.distritoLoc && (
+                        <span className="brigade-meta-tag loc">
+                          <MapPin size={10} /> {brigade.distritoLoc.replace('loc-', 'DL ')}
+                        </span>
+                      )}
+                      {brigade.sections?.length > 0 && (
+                        <span className="brigade-meta-tag sec">
+                          <Hash size={10} /> {brigade.sections.length} Sec.
+                        </span>
+                      )}
+                      {brigade.leader && (
+                        <span className="brigade-meta-tag leader">
+                          <Crown size={10} /> {brigade.leader.name}
+                        </span>
+                      )}
                       <span className="brigade-status" style={{ color: statusCfg.color }}>
                         <StatusIcon size={11} /> {statusCfg.label}
                       </span>
-                      {brigade.hierarchy && (
-                        <span
-                          className="brigade-hierarchy-tag"
-                          style={{ color: getHierarchyColor(brigade.hierarchy), borderColor: getHierarchyColor(brigade.hierarchy) }}
-                        >
-                          <Shield size={9} /> {brigade.hierarchy.split(' ').slice(-1)[0]}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
                 <div className="brigade-card-right">
                   <div className="brigade-quick-stats">
                     <span className="brigade-member-count">
-                      <Users size={13} /> {brigade.members.length + (brigade.leader ? 1 : 0)}
+                      <Users size={13} /> {(brigade.members?.length || 0) + (brigade.leader ? 1 : 0)}
                     </span>
                     <span
                       className="brigade-score"
                       style={{ color: getScoreColor(brigade.stats?.score || 0) }}
                     >
-                      {brigade.stats?.score || 0}%
+                      {brigade.stats?.score ?? 0}%
                     </span>
                   </div>
                   {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                 </div>
               </div>
 
-              {/* Expanded Content */}
               {isExpanded && (
                 <div className="brigade-expanded">
-                  {/* Hierarchy Level */}
                   {brigade.hierarchy && (
                     <div className="brigade-section">
                       <h4 className="brigade-section-title">
@@ -345,7 +373,6 @@ export default function Brigades() {
                     </div>
                   )}
 
-                  {/* Leader */}
                   <div className="brigade-section">
                     <h4 className="brigade-section-title">
                       <Crown size={14} style={{ color: '#f59e0b' }} /> Líder de Brigada
@@ -356,8 +383,24 @@ export default function Brigades() {
                           <Crown size={14} />
                         </div>
                         <div className="brigade-member-info">
-                          <span className="brigade-member-name">{brigade.leader.name}</span>
-                          <span className="brigade-member-role">{brigade.leader.role}</span>
+                          <span className="brigade-member-name">{brigade.leader?.name || 'Líder s/n'}</span>
+                          <span className="brigade-member-role">{brigade.leader?.role || 'Líder'}</span>
+                          <div className="flex gap-2" style={{ marginTop: '0.35rem' }}>
+                               <button 
+                                onClick={() => handleStartInternalCall(brigade.leader.id)}
+                                className="badge-new success" 
+                                style={{ fontSize: '0.65rem', padding: '2px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                               >
+                                 <Volume2 size={10} /> Canal Voz
+                               </button>
+                               <button 
+                                onClick={() => handleStartPrivateChat(brigade.leader.id)}
+                                className="badge-new info" 
+                                style={{ fontSize: '0.65rem', padding: '2px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                               >
+                                 <MessageSquare size={10} /> Mensaje
+                               </button>
+                          </div>
                         </div>
                         {canSetLeader && (
                           <button
@@ -376,11 +419,10 @@ export default function Brigades() {
                     )}
                   </div>
 
-                  {/* Members */}
                   <div className="brigade-section">
                     <div className="brigade-section-title-row">
                       <h4 className="brigade-section-title">
-                        <Users size={14} /> Miembros ({brigade.members.length})
+                        <Users size={14} /> Miembros ({brigade.members?.length || 0})
                       </h4>
                       {canAddMembers && (
                         <button
@@ -392,46 +434,54 @@ export default function Brigades() {
                       )}
                     </div>
 
-                    {/* Add Member Panel */}
                     {showAddMember === brigade.id && (
                       <div className="brigade-add-panel">
-                        <p className="brigade-add-label">Usuarios disponibles:</p>
-                        {AVAILABLE_USERS
-                          .filter(u => !brigade.members.some(m => m.id === u.id))
+                        <p className="brigade-add-label">Operadores disponibles:</p>
+                        {allUsers
+                          .filter(u => (u.uid || u.id) !== currentUser.uid)
+                          .filter(u => !u.brigadeId)
+                          .filter(u => !u.inStructure)
+                          .filter(u => !brigade.members?.some(m => m.id === (u.uid || u.id)))
+                          .filter(u => !brigade.leader || brigade.leader.id !== (u.uid || u.id))
                           .map(user => (
-                          <div key={user.id} className="brigade-add-user-row">
+                          <div key={user.uid || user.id} className="brigade-add-user-row">
                             <div className="brigade-member-avatar">
-                              <span>{user.name[0]}</span>
+                              <span>{user.displayName?.[0] || 'U'}</span>
                             </div>
                             <div className="brigade-member-info">
-                              <span className="brigade-member-name">{user.name}</span>
+                              <span className="brigade-member-name">{user.displayName} {user.surname}</span>
                               <span className="brigade-member-role">{user.role}</span>
                             </div>
                             <button
                               className="brigade-action-btn success"
                               onClick={() => handleAddMember(brigade.id, user)}
                             >
-                              <Plus size={14} /> Agregar
+                              <Plus size={14} />
                             </button>
                           </div>
                         ))}
                       </div>
                     )}
 
-                    {/* Member List */}
                     <div className="brigade-members-list">
-                      {brigade.members.map(member => (
+                      {(brigade.members || []).map(member => (
                         <div key={member.id} className="brigade-member-row">
                           <div className="brigade-member-avatar">
-                            <span>{member.name[0]}</span>
+                            <span>{member.name?.[0] || '?'}</span>
                           </div>
                           <div className="brigade-member-info">
-                            <span className="brigade-member-name">{member.name}</span>
-                            <span className="brigade-member-role">{member.role}</span>
+                            <span className="brigade-member-name">
+                              {member.name || 'Usuario'}
+                            </span>
+                            <div className="flex gap-2" style={{ marginTop: '0.2rem' }}>
+                                <button onClick={() => handleStartInternalCall(member.id)} style={{ color: 'var(--color-primary-light)' }} title="Voz">
+                                  <Volume2 size={12} />
+                                </button>
+                                <button onClick={() => handleStartPrivateChat(member.id)} style={{ color: 'var(--status-info)' }} title="Mensaje">
+                                  <MessageSquare size={12} />
+                                </button>
+                            </div>
                           </div>
-                          <span className="brigade-member-date">
-                            {new Date(member.joinedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}
-                          </span>
                           <div className="brigade-member-actions">
                             {canSetLeader && (!brigade.leader || brigade.leader.id !== member.id) && (
                               <button
@@ -443,70 +493,34 @@ export default function Brigades() {
                               </button>
                             )}
                             {canRemoveMembers && (
-                              <button
+                              <button 
                                 className="brigade-action-btn danger"
-                                onClick={() => handleRemoveMember(brigade.id, member.id)}
+                                onClick={() => handleRemoveMember(brigade.id, member)}
                                 title="Remover"
                               >
-                                <UserMinus size={12} />
+                                <UserMinus size={14} />
                               </button>
                             )}
                           </div>
                         </div>
                       ))}
-                      {brigade.members.length === 0 && (
-                        <div className="brigade-empty-members">
-                          No hay miembros aún. ¡Agrega operadores a la brigada!
-                        </div>
-                      )}
                     </div>
                   </div>
 
-                  {/* Sections */}
                   <div className="brigade-section">
                     <h4 className="brigade-section-title">
                       <Hash size={14} /> Secciones Asignadas
                     </h4>
                     <div className="brigade-sections-row">
-                      {brigade.sections.map(sec => (
+                      {(brigade.sections || []).map(sec => (
                         <span key={sec} className="brigade-section-tag">{sec}</span>
                       ))}
-                      {brigade.sections.length === 0 && (
-                        <span className="brigade-empty-sections">Sin secciones</span>
-                      )}
                     </div>
                   </div>
 
-                  {/* Stats */}
-                  <div className="brigade-section">
-                    <h4 className="brigade-section-title">
-                      <BarChart3 size={14} /> Rendimiento
-                    </h4>
-                    <div className="brigade-perf-grid">
-                      <div className="brigade-perf-item">
-                        <span className="brigade-perf-value">{brigade.stats?.tasksCompleted || 0}</span>
-                        <span className="brigade-perf-label">Tareas Completadas</span>
-                      </div>
-                      <div className="brigade-perf-item">
-                        <span className="brigade-perf-value" style={{ color: getScoreColor(brigade.stats?.score || 0) }}>
-                          {brigade.stats?.score || 0}%
-                        </span>
-                        <span className="brigade-perf-label">Score Global</span>
-                      </div>
-                      <div className="brigade-perf-item">
-                        <span className="brigade-perf-value">{brigade.stats?.pendingTasks || 0}</span>
-                        <span className="brigade-perf-label">Pendientes</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions — permission-gated */}
                   <div className="brigade-actions-row">
                     {canEdit && (
-                      <button
-                        className="brigade-action-main"
-                        onClick={() => setEditingBrigade(brigade)}
-                      >
+                      <button className="brigade-action-main" onClick={() => setEditingBrigade(brigade)}>
                         <Edit3 size={14} /> Editar
                       </button>
                     )}
@@ -514,20 +528,19 @@ export default function Brigades() {
                       className="brigade-action-main chat" 
                       onClick={() => navigate(`/messages?brigadeId=${brigade.id}`)}
                     >
-                      <MessageSquare size={14} /> Ir al Chat
+                      <MessageSquare size={14} /> Abrir Chat
+                    </button>
+                    <button 
+                      className="brigade-action-main voice" 
+                      onClick={() => handleJoinBrigadeVoice(brigade.id)}
+                      style={{ backgroundColor: 'var(--status-success)', color: 'white' }}
+                    >
+                      <Volume2 size={14} /> Canal de Voz
                     </button>
                     {canDelete && (
-                      <button
-                        className="brigade-action-main danger"
-                        onClick={() => handleDeleteBrigade(brigade.id)}
-                      >
+                      <button className="brigade-action-main danger" onClick={() => handleDeleteBrigade(brigade.id)}>
                         <Trash2 size={14} /> Eliminar
                       </button>
-                    )}
-                    {!canEdit && !canDelete && (
-                      <div className="brigade-no-perms">
-                        <Lock size={12} /> Sin permisos de administración
-                      </div>
                     )}
                   </div>
                 </div>
@@ -537,7 +550,6 @@ export default function Brigades() {
         })}
       </div>
 
-      {/* Create/Edit Modal */}
       {(showCreateModal || editingBrigade) && (
         <BrigadeModal
           brigade={editingBrigade}
@@ -553,18 +565,29 @@ export default function Brigades() {
           onClose={() => { setShowCreateModal(false); setEditingBrigade(null); }}
         />
       )}
+
+      {transferringMember && sourceBrigadeForTransfer && (
+        <TransferBrigadeModal
+          member={transferringMember}
+          sourceBrigade={sourceBrigadeForTransfer}
+          allBrigades={brigades}
+          onTransfer={handleTransferExecute}
+          onCancel={() => {
+            setTransferringMember(null);
+            setSourceBrigadeForTransfer(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════
-   CREATE / EDIT MODAL (with Hierarchy)
-   ═══════════════════════════════════════════════ */
 function BrigadeModal({ brigade, canChangeStatus, onSave, onClose }) {
   const [form, setForm] = useState({
     name: brigade?.name || '',
     emoji: brigade?.emoji || '🛡️',
-    zone: brigade?.zone || '',
+    distritoFed: brigade?.distritoFed || '',
+    distritoLoc: brigade?.distritoLoc || '',
     hierarchy: brigade?.hierarchy || 'Coordinador Seccional',
     sections: brigade?.sections?.join(', ') || '',
     status: brigade?.status || 'forming',
@@ -576,7 +599,8 @@ function BrigadeModal({ brigade, canChangeStatus, onSave, onClose }) {
     onSave({
       name: form.name.trim(),
       emoji: form.emoji,
-      zone: form.zone.trim(),
+      distritoFed: form.distritoFed,
+      distritoLoc: form.distritoLoc,
       hierarchy: form.hierarchy,
       sections: form.sections.split(',').map(s => s.trim()).filter(Boolean),
       status: form.status,
@@ -594,7 +618,6 @@ function BrigadeModal({ brigade, canChangeStatus, onSave, onClose }) {
         </div>
 
         <form className="brigade-modal-form" onSubmit={handleSubmit}>
-          {/* Emoji Picker */}
           <div className="brigade-form-group">
             <label>Insignia</label>
             <div className="brigade-emoji-picker">
@@ -611,7 +634,6 @@ function BrigadeModal({ brigade, canChangeStatus, onSave, onClose }) {
             </div>
           </div>
 
-          {/* Name */}
           <div className="brigade-form-group">
             <label>Nombre de la Brigada</label>
             <input
@@ -623,10 +645,8 @@ function BrigadeModal({ brigade, canChangeStatus, onSave, onClose }) {
             />
           </div>
 
-          {/* Hierarchy Level */}
           <div className="brigade-form-group">
             <label>Nivel Jerárquico</label>
-            <p className="brigade-form-hint">Define a qué nivel de la estructura pertenece esta brigada</p>
             <div className="brigade-hierarchy-selector">
               {HIERARCHY_LEVELS.map(level => (
                 <button
@@ -649,29 +669,48 @@ function BrigadeModal({ brigade, canChangeStatus, onSave, onClose }) {
             </div>
           </div>
 
-          {/* Zone */}
-          <div className="brigade-form-group">
-            <label>Zona / Distrito</label>
-            <input
-              className="brigade-form-input"
-              value={form.zone}
-              onChange={e => setForm(p => ({ ...p, zone: e.target.value }))}
-              placeholder="Ej: Distrito 3 - Norte"
-            />
+          <div className="brigade-form-row">
+            <div className="brigade-form-group">
+              <label>Distrito Federal</label>
+              <select
+                className="brigade-form-select"
+                value={form.distritoFed}
+                onChange={e => setForm(p => ({ ...p, distritoFed: e.target.value }))}
+                required
+              >
+                <option value="">-- Seleccionar --</option>
+                {FEDERAL_DISTRICTS.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="brigade-form-group">
+              <label>Distrito Local</label>
+              <select
+                className="brigade-form-select"
+                value={form.distritoLoc}
+                onChange={e => setForm(p => ({ ...p, distritoLoc: e.target.value }))}
+                required
+              >
+                <option value="">-- Seleccionar --</option>
+                {LOCAL_DISTRICTS.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Sections */}
           <div className="brigade-form-group">
-            <label>Secciones (separadas por coma)</label>
+            <label>Secciones Electorales</label>
             <input
               className="brigade-form-input"
               value={form.sections}
               onChange={e => setForm(p => ({ ...p, sections: e.target.value }))}
-              placeholder="Ej: 0841, 0842, 0843"
+              placeholder="Ej: 0841, 0842"
             />
           </div>
 
-          {/* Status */}
           <div className="brigade-form-group">
             <label>Estado</label>
             <select
@@ -684,14 +723,8 @@ function BrigadeModal({ brigade, canChangeStatus, onSave, onClose }) {
                 <option key={key} value={key}>{cfg.label}</option>
               ))}
             </select>
-            {!canChangeStatus && (
-              <span className="brigade-form-lock-hint">
-                <Lock size={11} /> No tienes permiso para cambiar el estado
-              </span>
-            )}
           </div>
 
-          {/* Submit */}
           <div className="brigade-modal-actions">
             <button type="button" className="brigade-modal-btn ghost" onClick={onClose}>
               Cancelar

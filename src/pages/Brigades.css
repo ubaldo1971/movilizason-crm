@@ -184,16 +184,55 @@
 .brigade-meta {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  flex-wrap: wrap; /* NEW: allow wrap for more meta info */
+  margin-top: 0.25rem;
 }
 
-.brigade-zone,
+.brigade-meta-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.brigade-meta-tag.fed {
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.2);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.brigade-meta-tag.loc {
+  color: #0ea5e9;
+  border-color: rgba(14, 165, 233, 0.2);
+  background: rgba(14, 165, 233, 0.05);
+}
+
+.brigade-meta-tag.sec {
+  color: #8b5cf6;
+  border-color: rgba(139, 92, 246, 0.2);
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.brigade-meta-tag.leader {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.2);
+  background: rgba(245, 158, 11, 0.05);
+}
+
 .brigade-status {
   display: flex;
   align-items: center;
   gap: 0.25rem;
   font-size: 0.7rem;
   color: var(--text-muted);
+  font-weight: 600;
 }
 
 .brigade-card-right {
@@ -549,15 +588,18 @@
    ═══════════════════════════════════════ */
 .brigade-modal-overlay {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-  animation: fadeIn 0.15s ease;
+  display: grid;
+  place-items: center;
+  z-index: 9999;
+  padding: 2rem;
+  animation: fadeIn 0.2s ease;
+  overflow-y: auto;
 }
 
 @keyframes fadeIn {
@@ -570,10 +612,19 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   width: 100%;
-  max-width: 480px;
-  max-height: 90vh;
-  overflow-y: auto;
-  animation: slideUp 0.2s ease-out;
+  max-width: 620px;
+  max-height: 75vh; /* Reducido para asegurar espacio vertical */
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  animation: modalEnter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+@keyframes modalEnter {
+  from { transform: translateY(30px) scale(0.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 @keyframes slideUp {
@@ -585,7 +636,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 1.5rem;
+  padding: 1.25rem 2rem; /* Padding horizontal incrementado */
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -609,10 +660,18 @@
 }
 
 .brigade-modal-form {
-  padding: 1.5rem;
+  padding: 1.5rem 2rem;
+  overflow-y: auto; /* El formulario hace scroll, no el modal entero */
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  flex: 1;
+}
+
+.brigade-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
 }
 
 .brigade-form-group {
@@ -744,9 +803,9 @@
 
 /* Hierarchy Selector (modal) */
 .brigade-hierarchy-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
 }
 
 .brigade-hierarchy-option {
@@ -796,6 +855,51 @@
   font-size: 0.65rem;
   color: var(--text-muted);
   margin-top: 0.25rem;
+}
+
+/* Territory Selectors Styling */
+.brigade-sections-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.brigade-sections-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.brigade-section-tag-suggestion {
+  padding: 0.25rem 0.625rem;
+  background: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: monospace;
+}
+
+.brigade-section-tag-suggestion:hover {
+  border-color: var(--color-primary);
+  color: var(--text-primary);
+  background: rgba(128, 0, 32, 0.05);
+}
+
+.brigade-section-tag-suggestion.selected {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 8px rgba(128, 0, 32, 0.2);
 }
 
 .brigade-no-perms {

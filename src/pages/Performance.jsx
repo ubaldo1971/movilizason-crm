@@ -1,65 +1,120 @@
 import { useState, useEffect } from 'react';
-import { useRole } from '../context/RoleContext';
-import { useScoringEngine, CATEGORIES } from '../hooks/useScoringEngine';
 import { 
-  Trophy, Star, TrendingUp, Users, User, Award, Target,
-  Clock, CheckCircle, AlertTriangle, BarChart3, ChevronDown, ChevronUp,
-  Loader2
+  Trophy, 
+  Users, 
+  TrendingUp, 
+  TrendingDown, 
+  Calendar, 
+  Award, 
+  ChevronRight, 
+  ChevronDown, 
+  Target, 
+  Star, 
+  Shield, 
+  Zap,
+  Plus,
+  Settings,
+  Trash2,
+  Edit2,
+  User,
+  Clock,
+  Loader2,
+  X,
+  Heart,
+  Download,
+  Mail,
+  Phone
 } from 'lucide-react';
+import { useRole } from '../context/RoleContext';
+import { useScoringEngine } from '../hooks/useScoringEngine';
 import { 
-  collection, query, orderBy, limit, onSnapshot, getDocs 
+  collection, query, orderBy, limit, onSnapshot 
 } from '../lib/dbService';
 import { db } from '../firebaseConfig';
+import { exportToCSV } from '../lib/exportService';
+import './Performance.css';
 
 export default function Performance() {
-  const { role, ROLES } = useRole();
-  const { config, loading: configLoading, getRank } = useScoringEngine();
+  const { 
+    tasks, 
+    currentUser, 
+    role,
+    ROLES, 
+    medalTypes, 
+    awardedMedals, 
+    awardMedal, 
+    allUsers,
+    addMedalType, 
+    deleteMedalType 
+  } = useRole();
+  const { config, loading: configLoading } = useScoringEngine();
   const [activeTab, setActiveTab] = useState('individual');
-  const [expandedUser, setExpandedUser] = useState(null);
-  const [sortBy, setSortBy] = useState('score');
-  const [users, setUsers] = useState([]);
+  const [timeFilter, setTimeFilter] = useState('total'); // 'total' or 'monthly'
+  const [showAwardModal, setShowAwardModal] = useState(null);
+  const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [medalReason, setMedalReason] = useState("");
+  const [selectedMedalId, setSelectedMedalId] = useState("");
+  const [newMedal, setNewMedal] = useState({ name: '', icon: 'Award', color: '#800020' });
   const [brigades, setBrigades] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Get current month for goals lookup
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const isAdmin = role === ROLES.SUPER_ADMIN || role === ROLES.ADMIN_ESTATAL;
 
-  useEffect(() => {
-    setLoading(true);
-    // Real-time listener for top users
-    const usersQuery = query(
-      collection(db, 'users'),
-      orderBy('totalPoints', 'desc'),
-      limit(50)
-    );
-
-    const unsubscribeUsers = onSnapshot(usersQuery, (snapshot) => {
-      const usersData = snapshot.docs.map(doc => {
-        const d = doc.data();
-        return {
-          uid: doc.id,
-          ...d,
-          name: d.displayName || 'Usuario sin nombre',
-          score: d.totalPoints || 0,
-          tasksCompleted: d.tasksCompleted || 0,
-          assemblies: d.assemblies || 0,
-          visits: d.visits || 0,
-          murals: d.murals || 0,
-          brigade: d.brigadeName || 'Sin brigada asignada',
-          tasksAssigned: d.tasksAssigned || 0
-        };
-      });
-      setUsers(usersData);
+  const handleExportIndividual = () => {
+    const data = processedData.map((p, index) => {
+      const userFull = allUsers.find(u => u.uid === p.id) || {};
+      return {
+        rank: index + 1,
+        name: p.name,
+        role: p.role,
+        points: p.totalPoints,
+        tasks: p.tasksCompleted,
+        email: userFull.email || 'N/A',
+        phone: userFull.phone || 'N/A',
+        section: userFull.section || 'N/A',
+        distFederal: userFull.distFederal || 'N/A',
+        distLocal: userFull.distLocal || 'N/A'
+      };
     });
 
-    // Real-time listener for brigades
-    const brigadesQuery = query(
-      collection(db, 'brigades'),
-      orderBy('totalScore', 'desc'),
-      limit(20)
-    );
+    const headers = {
+      rank: 'Posición',
+      name: 'Nombre Completo',
+      role: 'Rol',
+      points: 'Puntos Acumulados',
+      tasks: 'Tareas Finalizadas',
+      email: 'Email de Contacto',
+      phone: 'Teléfono / WhatsApp',
+      section: 'Sección Territorial',
+      distFederal: 'Distrito Fed',
+      distLocal: 'Distrito Loc'
+    };
 
+    exportToCSV(data, `Ranking_Individual_${timeFilter}`, headers);
+  };
+
+  const handleExportBrigades = () => {
+    const data = brigades.map((b, index) => ({
+      rank: index + 1,
+      name: b.name,
+      members: b.members,
+      score: b.score,
+      efficiency: (b.completedRate * 100).toFixed(1) + '%'
+    }));
+
+    const headers = {
+      rank: 'Posición',
+      name: 'Nombre de Brigada',
+      members: 'Cant. Miembros',
+      score: 'Puntos Totales',
+      efficiency: 'Eficiencia % (Tareas)'
+    };
+
+    exportToCSV(data, 'Ranking_Brigadas_Excel', headers);
+  };
+
+  useEffect(() => {
+    const brigadesQuery = query(collection(db, 'brigades'), orderBy('totalScore', 'desc'), limit(20));
     const unsubscribeBrigades = onSnapshot(brigadesQuery, (snapshot) => {
       const brigadesData = snapshot.docs.map(doc => {
         const d = doc.data();
@@ -76,304 +131,461 @@ export default function Performance() {
       setBrigades(brigadesData);
       setLoading(false);
     });
-
-    return () => {
-      unsubscribeUsers();
-      unsubscribeBrigades();
-    };
+    return () => unsubscribeBrigades();
   }, []);
 
-  function getRankForScore(points, userRole = null, isBrigade = false) {
-    if (!config || !config.ranks) return { rank: 'D', emoji: '🚨', label: 'Deficiente', color: '#ef4444' };
-    
-    // Default goals if not found in config
-    const GOAL_DEFAULTS = {
-      individual: 1000,
-      brigade: 5000
-    };
+  const getProcessedScores = () => {
+    const userScores = {};
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    let goal = isBrigade ? GOAL_DEFAULTS.brigade : GOAL_DEFAULTS.individual;
+    tasks.forEach(task => {
+      const activeUser = task.assigneeId || task.completedBy;
+      if (!task.completed || !activeUser) return;
+      const finishedAt = new Date(task.completedAt);
+      if (timeFilter === 'monthly' && finishedAt < firstDayOfMonth) return;
 
-    // Lookup monthly goal from config
-    if (config.monthlyGoals && config.monthlyGoals[currentMonth]) {
-      const monthGoals = config.monthlyGoals[currentMonth];
-      if (isBrigade) {
-        // For brigades, we could use a specific 'brigade' key or a sum of roles
-        goal = monthGoals.brigades || GOAL_DEFAULTS.brigade;
-      } else if (userRole && monthGoals[userRole]) {
-        goal = monthGoals[userRole];
+      if (!userScores[task.assigneeId]) {
+        userScores[task.assigneeId] = {
+          id: task.assigneeId,
+          name: task.assignee || 'Usuario',
+          role: task.role || 'Brigadista',
+          totalPoints: 0,
+          tasksCompleted: 0
+        };
       }
-    }
+      userScores[task.assigneeId].totalPoints += (task.pointsEarned || 0);
+      userScores[task.assigneeId].tasksCompleted += 1;
+    });
+    return Object.values(userScores).sort((a, b) => b.totalPoints - a.totalPoints);
+  };
 
-    // Safety: don't divide by zero
-    if (goal <= 0) goal = 1;
+  const processedData = getProcessedScores();
+  const podium = processedData.slice(0, 3);
+  const others = processedData; // We'll handle the list in the central panel
 
-    const percentage = (points / goal) * 100;
-    
-    // Use the getRank utility from the hook (or localized version if hook doesn't export it yet)
-    // Looking at useScoringEngine.js, it defines getRank(score, ranks)
-    const ranks = config.ranks || [];
-    let foundRank = ranks.find(r => percentage >= r.min && percentage <= r.max);
-    
-    if (!foundRank) {
-      if (percentage > 100) foundRank = ranks.find(r => r.rank === 'A+') || ranks[0];
-      else foundRank = ranks[ranks.length - 1];
-    }
+  // Find current user's performance
+  const userPerformance = processedData.find(p => p.id === currentUser?.uid) || {
+    totalPoints: 0,
+    tasksCompleted: 0,
+    rank: '-'
+  };
+  const userRank = processedData.findIndex(p => p.id === currentUser?.uid) + 1;
 
-    return { ...foundRank, percentage: Math.round(percentage) };
-  }
-
-  const sortedUsers = [...users].sort((a, b) => {
-    if (sortBy === 'score') return b.score - a.score;
-    if (sortBy === 'tasks') return b.tasksCompleted - a.tasksCompleted;
-    return 0;
-  });
-
-  const sortedBrigades = [...brigades].sort((a, b) => b.score - a.score);
-
-  // Summary stats
-  const avgScore = users.length > 0 
-    ? Math.round(users.reduce((sum, u) => sum + (u.score || 0), 0) / users.length * 10) / 10 
-    : 0;
-  
-  const totalTasks = users.reduce((sum, u) => sum + (u.tasksAssigned || 0), 0);
-  const totalCompleted = users.reduce((sum, u) => sum + (u.tasksCompleted || 0), 0);
-  const overallRate = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
+  // Global metrics
+  const globalTotalPoints = processedData.reduce((acc, p) => acc + p.totalPoints, 0);
+  const globalTasksCompleted = processedData.reduce((acc, p) => acc + p.tasksCompleted, 0);
 
   if (loading || configLoading) {
     return (
       <div className="flex items-center justify-center" style={{ height: '60vh' }}>
-        <div className="flex-col items-center gap-4">
-          <Loader2 className="animate-spin" size={40} color="var(--color-primary)" />
-          <p style={{ color: 'var(--text-secondary)' }}>Cargando ranking en tiempo real...</p>
-        </div>
+        <Loader2 className="animate-spin" size={48} color="var(--color-primary)" />
       </div>
     );
   }
 
   return (
-    <div className="animate-fade-in" style={{ paddingBottom: '2rem' }}>
-      {/* Header */}
-      <div className="flex items-center gap-3" style={{ marginBottom: '2rem' }}>
-        <div style={{ padding: '0.75rem', background: 'linear-gradient(135deg, #a855f7, #6366f1)', borderRadius: 'var(--radius-md)' }}>
-          <BarChart3 color="white" size={24} />
+    <div className="performance-container animate-fade-in" style={{ maxWidth: '1600px', margin: '0 auto' }}>
+      <div className="flex justify-between items-center" style={{ marginBottom: '1rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>Desempeño Elite</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Análisis de operatividad y efectividad territorial</p>
         </div>
-        <div style={{ flex: 1 }}>
-          <div className="flex items-center gap-3">
-            <h1 style={{ fontSize: '1.5rem', margin: 0 }}>Ranking de Desempeño</h1>
-            <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(168,85,247,0.1)', color: '#a855f7', border: '1px solid rgba(168,85,247,0.2)', fontWeight: 'bold' }}>
-              LIVE (LPE)
-            </span>
+        <div className="flex gap-2">
+          <div className="glass-panel flex p-1" style={{ borderRadius: '12px' }}>
+            <button className={`btn-sm ${timeFilter === 'total' ? 'active' : ''}`} onClick={() => setTimeFilter('total')}>Historico</button>
+            <button className={`btn-sm ${timeFilter === 'monthly' ? 'active' : ''}`} onClick={() => setTimeFilter('monthly')}>Mes</button>
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Resultados basados en el Motor de Ponderación — Sonora 2026
-          </p>
         </div>
       </div>
 
-      {/* Summary KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-        <div className="card glass-panel" style={{ padding: '1.25rem' }}>
-          <div className="flex items-center gap-2" style={{ marginBottom: '0.75rem' }}>
-            <Star size={18} style={{ color: '#a855f7' }} />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Puntaje Promedio</span>
-          </div>
-          <h3 style={{ fontSize: '2rem', margin: 0, color: 'var(--color-primary-light)' }}>{avgScore} pts</h3>
-        </div>
-        <div className="card glass-panel" style={{ padding: '1.25rem' }}>
-          <div className="flex items-center gap-2" style={{ marginBottom: '0.75rem' }}>
-            <CheckCircle size={18} style={{ color: '#10b981' }} />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Tasa Completado</span>
-          </div>
-          <h3 style={{ fontSize: '2rem', margin: 0 }}>{overallRate}%</h3>
-        </div>
-        <div className="card glass-panel" style={{ padding: '1.25rem' }}>
-          <div className="flex items-center gap-2" style={{ marginBottom: '0.75rem' }}>
-            <Users size={18} style={{ color: '#3b82f6' }} />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Operadores</span>
-          </div>
-          <h3 style={{ fontSize: '2rem', margin: 0 }}>{users.length}</h3>
-        </div>
-        <div className="card glass-panel" style={{ padding: '1.25rem' }}>
-          <div className="flex items-center gap-2" style={{ marginBottom: '0.75rem' }}>
-            <Trophy size={18} style={{ color: '#f59e0b' }} />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Brigadas</span>
-          </div>
-          <h3 style={{ fontSize: '2rem', margin: 0 }}>{brigades.length}</h3>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-4" style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-        <button 
-          onClick={() => setActiveTab('individual')}
-          style={{ background: 'none', border: 'none', padding: '0.75rem 0.25rem', color: activeTab === 'individual' ? 'var(--text-primary)' : 'var(--text-secondary)', borderBottom: activeTab === 'individual' ? '2px solid var(--color-primary-light)' : 'none', fontWeight: activeTab === 'individual' ? 'bold' : 'normal', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-        >
-          <User size={16} /> Individual
-        </button>
-        <button 
-          onClick={() => setActiveTab('brigades')}
-          style={{ background: 'none', border: 'none', padding: '0.75rem 0.25rem', color: activeTab === 'brigades' ? 'var(--text-primary)' : 'var(--text-secondary)', borderBottom: activeTab === 'brigades' ? '2px solid var(--color-primary-light)' : 'none', fontWeight: activeTab === 'brigades' ? 'bold' : 'normal', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-        >
-          <Users size={16} /> Por Brigada
-        </button>
-      </div>
-
-      {/* Individual Tab */}
-      {activeTab === 'individual' && (
-        <div className="flex-col gap-3">
-          {/* Sort controls */}
-          <div className="flex gap-2 items-center" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-            <span>Ordenar:</span>
-            {[{ key: 'score', label: 'Score' }, { key: 'tasks', label: 'Tareas' }].map(s => (
-              <button 
-                key={s.key}
-                onClick={() => setSortBy(s.key)}
-                style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', borderRadius: '100px', border: '1px solid var(--border-color)', background: sortBy === s.key ? 'var(--color-primary)' : 'transparent', color: sortBy === s.key ? 'white' : 'var(--text-secondary)', cursor: 'pointer' }}
-              >
-                {s.label}
-              </button>
-            ))}
+      <div className="performance-dashboard-layout">
+        {/* PANEL 1: MI ESTATUS (IZQUIERDA) */}
+        <aside className="glass-panel-aside animate-slide-right">
+          <div className="panel-section-title"><User size={14} /> Mi Estatus</div>
+          
+          <div className="user-glory-card">
+            <div style={{ position: 'relative', display: 'inline-block', marginBottom: '1rem' }}>
+              <div style={{ width: '80px', height: '80px', borderRadius: '50%', border: '3px solid var(--color-primary)', display: 'flex', alignItems: 'center', justifycontent: 'center', background: 'rgba(128,0,32,0.1)', fontSize: '2rem', fontWeight: 800 }}>
+                {currentUser?.displayName?.charAt(0) || 'U'}
+              </div>
+              <div style={{ position: 'absolute', bottom: -5, right: -5, width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-surface-elevated)', border: '2px solid var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.8rem' }}>
+                #{userRank || '-'}
+              </div>
+            </div>
+            <div style={{ fontWeight: 800, fontSize: '1.2rem' }}>{currentUser?.displayName || 'Usuario'}</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{currentUser?.role || 'Brigadista'}</div>
+            
+            <div className="user-glory-points">{userPerformance.totalPoints.toLocaleString()}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Puntos Acumulados</div>
           </div>
 
-          {sortedUsers.map((person, index) => {
-            const rankCfg = getRankForScore(person.score, person.role);
-            const isExpanded = expandedUser === person.uid;
-            const completionRate = person.tasksAssigned > 0 ? Math.round((person.tasksCompleted / person.tasksAssigned) * 100) : 0;
-
-            return (
-              <div 
-                key={person.uid} 
-                className="card" 
-                style={{ padding: 0, overflow: 'hidden', borderLeft: `3px solid ${rankCfg.color}`, cursor: 'pointer' }}
-                onClick={() => setExpandedUser(isExpanded ? null : person.uid)}
-              >
-                <div className="flex items-center gap-4" style={{ padding: '1rem 1.25rem' }}>
-                  {/* Rank Position */}
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: index < 3 ? `linear-gradient(135deg, ${rankCfg.color}, ${rankCfg.color}88)` : 'var(--bg-surface-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', fontWeight: 'bold', color: index < 3 ? 'white' : 'var(--text-secondary)', flexShrink: 0 }}>
-                    {index + 1}
-                  </div>
-
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="flex items-center gap-2">
-                      <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{person.name}</span>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{person.role}</span>
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{person.brigade}</span>
-                  </div>
-
-                  {/* Score */}
-                  <div style={{ textAlign: 'right', flexShrink: 0, minWidth: '80px' }}>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: rankCfg.color, lineHeight: 1 }}>{Math.round(person.score)}</div>
-                    <div style={{ fontSize: '0.7rem', color: rankCfg.color, fontWeight: 600, marginBottom: '4px' }}>
-                      {rankCfg.emoji} {rankCfg.rank}
-                    </div>
-                    {/* Tiny Goal Progress Bar */}
-                    <div style={{ width: '100%', height: '4px', background: 'var(--bg-surface-elevated)', borderRadius: '2px', overflow: 'hidden' }}>
-                      <div style={{ width: `${Math.min(100, rankCfg.percentage)}%`, height: '100%', background: rankCfg.color, borderRadius: '2px' }} />
-                    </div>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '2px' }}>{rankCfg.percentage}% meta</div>
-                  </div>
-
-                  <div style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
-                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </div>
-                </div>
-
-                {/* Expanded Details */}
-                {isExpanded && (
-                  <div style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem' }}>
-                      <div className="flex-col gap-1">
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Eficiencia</span>
-                        <span style={{ fontSize: '1.25rem', fontWeight: 700 }}>{completionRate}%</span>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{person.tasksCompleted} / {person.tasksAssigned} tareas</span>
-                      </div>
-                      
-                      {/* Show categorical points if they exist */}
-                      {Object.keys(CATEGORIES).map(catKey => {
-                        const points = person[`points_${catKey}`] || 0;
-                        if (points === 0) return null;
-                        return (
-                          <div key={catKey} className="flex-col gap-1">
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{CATEGORIES[catKey].label}</span>
-                            <span style={{ fontSize: '1.25rem', fontWeight: 700 }}>{Math.round(points)}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+          <div style={{ marginTop: '1.5rem', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div className="panel-section-title"><Award size={14} /> Mis Galardones</div>
+            <div className="scrollable-content">
+              <div className="medal-grid-mini">
+                {awardedMedals.filter(m => m.userId === currentUser?.uid).length === 0 && (
+                  <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    Sigue operando para ganar medallas.
                   </div>
                 )}
+                {awardedMedals.filter(m => m.userId === currentUser?.uid).map((aw, i) => {
+                  const mType = medalTypes.find(mt => mt.id === aw.medalId);
+                  return (
+                    <div key={i} className="medal-bubble-mini" title={`${mType?.name || 'Medalla'}: ${aw.reason}`}>
+                      <div style={{ color: mType?.color || 'gray' }}>
+                        <MedalIcon iconName={mType?.icon} size={20} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          </div>
+        </aside>
+
+        {/* PANEL 2: RANKING (CENTRO) */}
+        <main className="main-leaderboard-panel animate-slide-up">
+          <div className="flex gap-4" style={{ marginBottom: '1.25rem' }}>
+            <button onClick={() => setActiveTab('individual')} className={`tab-button ${activeTab === 'individual' ? 'active' : ''}`}>
+              OPERADORES
+            </button>
+            <button onClick={() => setActiveTab('brigades')} className={`tab-button ${activeTab === 'brigades' ? 'active' : ''}`}>
+              BRIGADAS
+            </button>
+          </div>
+
+          <div className="scrollable-content card glass-panel" style={{ padding: '1rem', border: 'none' }}>
+            {activeTab === 'individual' ? (
+              <>
+                <div className="podium-compact">
+                  {podium.map((p, i) => (
+                    <div key={p.id} className={`podium-slot p-slot-${i+1}`}>
+                      <div className="podium-avatar-mini">
+                        <User size={i === 0 ? 32 : 24} />
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '0.8rem' }}>{p.name.split(' ')[0]}</div>
+                      <div style={{ color: 'var(--color-primary-light)', fontWeight: 900 }}>{p.totalPoints.toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="leaderboard-list">
+                  {processedData.map((performer, idx) => (
+                    <div key={performer.id} className="ranking-item flex items-center justify-between" style={{ padding: '0.8rem 1rem', borderRadius: '12px', marginBottom: '0.5rem', background: performer.id === currentUser?.uid ? 'rgba(128,0,32,0.1)' : 'transparent' }}>
+                      <div className="flex items-center gap-4">
+                        <span style={{ width: '24px', fontWeight: 900, opacity: 0.5 }}>{idx + 1}</span>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{performer.name}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{performer.role}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{performer.totalPoints.toLocaleString()} <span style={{ fontSize: '0.7rem', fontWeight: 'normal' }}>pts</span></div>
+                        {currentUser?.role === ROLES.SUPER_ADMIN && (
+                          <button className="btn-icon" style={{ padding: '5px', borderRadius: '8px' }} onClick={() => setShowAwardModal(performer)}>
+                            <Award size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                {brigades.map((brigade, index) => (
+                  <div key={brigade.id} className="glass-metric flex justify-between items-center" style={{ padding: '1.25rem', borderRadius: '16px', background: 'rgba(255,255,255,0.03)' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{brigade.name}</h3>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{brigade.members} miembros registrados</p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--color-primary-light)' }}>{Math.round(brigade.score).toLocaleString()}</div>
+                      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase' }}>Puntos Totales</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* PANEL 3: ANALITICA / TOOLS (DERECHA) */}
+        <aside className="glass-panel-aside animate-slide-left">
+          <div className="panel-section-title"><TrendingUp size={14} /> Analítica Global</div>
+          
+          <div className="global-metric">
+            <h4>Puntuación Estructura</h4>
+            <div className="global-metric-val">{globalTotalPoints.toLocaleString()}</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--status-success)' }}>+12% vs mes anterior</div>
+          </div>
+
+          <div className="global-metric">
+            <h4>Tareas Completadas</h4>
+            <div className="global-metric-val">{globalTasksCompleted.toLocaleString()}</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--status-warning)' }}>Meta: 5,000</div>
+          </div>
+
+          {isAdmin ? (
+            <div className="card glass-panel animate-slide-left" style={{ marginTop: '1.5rem', padding: '1.25rem', border: '1px solid rgba(16, 185, 129, 0.2)', animationDelay: '0.2s' }}>
+              <div className="panel-section-title" style={{ color: 'var(--color-success-light)', marginBottom: '1rem' }}>
+                <Download size={14} /> Gestión de Datos
+              </div>
+              <div className="flex-col gap-2">
+                <button className="btn-export-perf" onClick={handleExportIndividual}>
+                  <User size={14} /> 
+                  <span>Ranking Operadores</span>
+                </button>
+                <button className="btn-export-perf" onClick={handleExportBrigades}>
+                  <Users size={14} /> 
+                  <span>Ranking Brigadas</span>
+                </button>
+              </div>
+              <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.75rem', lineHeight: '1.4' }}>
+                * La exportación incluye datos de contacto (Email/Tel) y territorio asignado.
+              </p>
+            </div>
+          ) : (
+            <div className="card glass-panel" style={{ marginTop: '1.5rem', padding: '1rem', opacity: 0.6 }}>
+               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', margin: 0 }}>
+                Acceso a reportes detallados reservado para administración.
+              </p>
+            </div>
+          )}
+
+          <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+            <button 
+              className="btn flex items-center justify-center gap-2" 
+              style={{ width: '100%', background: 'rgba(255,255,255,0.05)' }}
+              onClick={() => setShowCatalogModal(true)}
+            >
+              <Settings size={16} /> Configurar Sistema
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      {/* Recue existing modals logic */}
+      {showAwardModal && (
+        <div className="modal-overlay" style={{ 
+          position: 'fixed', 
+          inset: 0, 
+          backgroundColor: 'rgba(0,0,0,0.85)', 
+          zIndex: 2000, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'flex-start',
+          padding: '4rem 1rem',
+          overflowY: 'auto',
+          backdropFilter: 'blur(8px)' 
+        }}>
+          <div className="card glass-panel modal-standard-tall animate-scale-in" style={{ 
+            width: '100%', 
+            maxWidth: '500px', 
+            padding: '2.5rem', 
+            position: 'relative',
+            margin: 'auto 0'
+          }}>
+            <button 
+              onClick={() => setShowAwardModal(null)}
+              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
+            >
+              <X size={20} />
+            </button>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+              <Award color="var(--color-primary)" />
+              Condecorar a {showAwardModal.name.split(' ')[0]}
+            </h2>
+            
+            <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>Selecciona Medalla:</label>
+            <div className="flex-col gap-2" style={{ marginBottom: '1.5rem', maxHeight: '200px', overflowY: 'auto' }}>
+              {medalTypes.length === 0 && (
+                <p style={{ fontSize: '0.75rem', textAlign: 'center', color: 'var(--status-warning)' }}>
+                  No hay medallas en el catálogo. Configúralas primero.
+                </p>
+              )}
+              {medalTypes.map(m => (
+                <button 
+                  key={m.id}
+                  onClick={() => setSelectedMedalId(m.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem', borderRadius: '12px', border: selectedMedalId === m.id ? '2px solid var(--color-primary)' : '1px solid var(--border-color)', backgroundColor: selectedMedalId === m.id ? 'rgba(128,0,32,0.1)' : 'transparent', width: '100%', textAlign: 'left'
+                  }}
+                >
+                  <div style={{ color: m.color }}>
+                    <MedalIcon iconName={m.icon} size={20} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{m.name}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{m.description}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}>Motivo:</label>
+            <textarea 
+              value={medalReason}
+              onChange={(e) => setMedalReason(e.target.value)}
+              placeholder="Ej. Por su gran entrega en la asamblea..."
+              style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'white', marginBottom: '1.5rem', height: '80px' }}
+            />
+
+            <div className="flex gap-2">
+              <button className="btn" style={{ flex: 1 }} onClick={() => setShowAwardModal(null)}>Cancelar</button>
+              <button 
+                className="btn btn-primary" 
+                style={{ flex: 1.5 }}
+                disabled={!selectedMedalId}
+                onClick={async () => {
+                  await awardMedal(showAwardModal.id, selectedMedalId, medalReason);
+                  setShowAwardModal(null);
+                  setMedalReason("");
+                  setSelectedMedalId("");
+                }}
+              >
+                Entregar Medalla
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Brigades Tab */}
-      {activeTab === 'brigades' && (
-        <div className="flex-col gap-4">
-          {sortedBrigades.map((brigade, index) => {
-            const rankCfg = getRankForScore(brigade.score, null, true);
-            const completedPct = Math.round(brigade.completedRate * 100);
+      {showCatalogModal && (
+        <div className="modal-overlay" style={{ 
+          position: 'fixed', 
+          inset: 0, 
+          backgroundColor: 'rgba(0,0,0,0.85)', 
+          zIndex: 2000, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'flex-start',
+          padding: '4rem 1rem',
+          overflowY: 'auto',
+          backdropFilter: 'blur(8px)' 
+        }}>
+          <div className="card glass-panel modal-majestic animate-scale-in" style={{ 
+            width: '95%', 
+            maxWidth: '850px', 
+            height: '85vh', 
+            padding: '4rem', 
+            position: 'relative',
+            margin: 'auto 0',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            boxShadow: '0 0 40px rgba(128, 0, 32, 0.3)' 
+          }}>
+            <button 
+              onClick={() => setShowCatalogModal(false)}
+              style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
+            >
+              <X size={24} />
+            </button>
+            <div className="flex justify-between items-center" style={{ marginBottom: '1.5rem' }}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Settings color="var(--color-primary)" />
+                Catálogo de Medallas
+              </h2>
+            </div>
 
-            return (
-              <div key={brigade.id} className="card" style={{ padding: '1.25rem', borderLeft: `3px solid ${rankCfg.color}` }}>
-                <div className="flex items-center justify-between" style={{ marginBottom: '1rem' }}>
-                  <div className="flex items-center gap-3">
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: `linear-gradient(135deg, ${rankCfg.color}, ${rankCfg.color}66)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white', fontSize: '0.875rem' }}>
-                      #{index + 1}
+            <div className="medal-list-container">
+              {medalTypes.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                  <Award size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                  <p>Aún no hay medallas configuradas.</p>
+                </div>
+              )}
+              {medalTypes.map(m => (
+                <div key={m.id} className="medal-item-premium flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div style={{ color: m.color, filter: 'drop-shadow(0 0 8px currentColor)' }}>
+                      <MedalIcon iconName={m.icon} size={24} />
                     </div>
                     <div>
-                      <h4 style={{ fontSize: '1rem', margin: 0 }}>{brigade.name}</h4>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{brigade.members} miembros</span>
+                      <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{m.name}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{m.icon} • {m.color}</div>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '2rem', fontWeight: 800, color: rankCfg.color }}>{Math.round(brigade.score)}</div>
-                    <div style={{ fontSize: '0.75rem', color: rankCfg.color, fontWeight: 600 }}>{rankCfg.emoji} Rango {rankCfg.rank}</div>
-                  </div>
+                  <button 
+                    className="btn-icon" 
+                    onClick={() => deleteMedalType(m.id)}
+                  >
+                    <Trash2 size={18} color="var(--status-error)" />
+                  </button>
                 </div>
-
-                {/* Points Breakdown */}
-                <div className="flex-col gap-3">
-                  <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-                    {Object.keys(CATEGORIES).map(catKey => {
-                      const points = (brigade.pointsByTask && brigade.pointsByTask[catKey]) || 0;
-                      if (points === 0) return null;
-                      return (
-                        <div key={catKey} style={{ padding: '4px 10px', background: `${CATEGORIES[catKey].color}15`, borderRadius: '6px', fontSize: '0.7rem', whiteSpace: 'nowrap', border: `1px solid ${CATEGORIES[catKey].color}30` }}>
-                          <span style={{ opacity: 0.8 }}>{CATEGORIES[catKey].label}: </span>
-                          <b style={{ color: CATEGORIES[catKey].color }}>{Math.round(points)} pts</b>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                      <span>Tasa de Eficacia Operativa</span>
-                      <span style={{ fontWeight: 600, color: completedPct >= 80 ? '#10b981' : '#f59e0b' }}>{completedPct}%</span>
-                    </div>
-                    <div style={{ width: '100%', height: '8px', borderRadius: '4px', backgroundColor: 'var(--bg-surface-elevated)', overflow: 'hidden' }}>
-                      <div style={{ width: `${Math.min(100, completedPct)}%`, height: '100%', borderRadius: '4px', background: `linear-gradient(90deg, ${rankCfg.color}, ${rankCfg.color}88)`, transition: 'width 1s ease' }}></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          {sortedBrigades.length === 0 && !loading && (
-            <div style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <Trophy size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
-              <p>No hay brigadas registradas con actividad todavía.</p>
+              ))}
             </div>
-          )}
+
+            <div className="card" style={{ border: '1px dashed var(--color-primary)', backgroundColor: 'rgba(128,0,32,0.05)', padding: '2rem' }}>
+              <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Nueva Medalla</h3>
+              <div className="flex-col gap-3">
+                <input 
+                  type="text" 
+                  placeholder="Nombre de la medalla"
+                  value={newMedal.name}
+                  onChange={(e) => setNewMedal({...newMedal, name: e.target.value})}
+                  className="card" style={{ backgroundColor: 'transparent', width: '100%' }}
+                />
+                <div className="flex gap-2">
+                  <select 
+                    value={newMedal.icon}
+                    onChange={(e) => setNewMedal({...newMedal, icon: e.target.value})}
+                    style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'white' }}
+                  >
+                    <option value="Award">Award</option>
+                    <option value="Star">Star</option>
+                    <option value="Zap">Zap</option>
+                    <option value="Shield">Shield</option>
+                    <option value="Trophy">Trophy</option>
+                    <option value="Target">Target</option>
+                    <option value="Heart">Heart</option>
+                    <option value="Flag">Flag</option>
+                  </select>
+                  <input 
+                    type="color" 
+                    value={newMedal.color}
+                    onChange={(e) => setNewMedal({...newMedal, color: e.target.value})}
+                    style={{ width: '40px', height: '40px', padding: 0, border: 'none', borderRadius: '4px' }}
+                  />
+                </div>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    if (newMedal.name) {
+                      addMedalType(newMedal);
+                      setNewMedal({ name: '', icon: 'Award', color: '#800020' });
+                    }
+                  }}
+                >
+                  <Plus size={18} /> Agregar al Catálogo
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 'auto', paddingTop: '3rem', textAlign: 'right' }}>
+              <button className="btn" style={{ padding: '0.8rem 2rem' }} onClick={() => setShowCatalogModal(false)}>Cerrar Panel de Control</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
+}
+
+// Helper to render icon by name
+function MedalIcon({ iconName, size = 18 }) {
+  switch (iconName) {
+    case 'Award': return <Award size={size} />;
+    case 'Star': return <Star size={size} />;
+    case 'Zap': return <Zap size={size} />;
+    case 'Shield': return <Shield size={size} />;
+    case 'Trophy': return <Trophy size={size} />;
+    case 'Target': return <Target size={size} />;
+    case 'Heart': return <Heart size={size} />;
+    case 'Flag': return <Plus size={size} />; // Placeholder or real Flag
+    default: return <Award size={size} />;
+  }
 }
 

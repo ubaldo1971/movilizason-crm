@@ -1,0 +1,134 @@
+.phone-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 3000; /* Ensure it is above everything else */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.phone-modal {
+  width: 100%;
+  max-width: 450px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.phone-modal-header {
+  padding: 1.5rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.phone-icon-wrap {
+  padding: 8px;
+  background: rgba(128, 0, 32, 0.1);
+  border-radius: 12px;
+}
+
+.phone-modal-body {
+  padding: 1.5rem;
+}
+
+.phone-input-container {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+.country-code {
+  background: var(--bg-surface-elevated);
+  height: 48px;
+  width: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border-color);
+}
+
+.phone-input-container .input-field {
+  flex: 1;
+  height: 48px;
+  background: transparent;
+  border: none !important;
+  box-shadow: none !important;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  font-weight: 700;
+  padding: 0 1rem;
+}
+
+.phone-input-container .input-field.error {
+  color: var(--status-error);
+}
+
+.error-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--status-error);
+  font-size: 0.75rem;
+  margin-top: 8px;
+  font-weight: 500;
+}
+
+.modal-info-box {
+  background: rgba(128, 0, 32, 0.05);
+  border: 1px dashed var(--color-primary);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 1.5rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.phone-modal-footer {
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-app);
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+@keyframes scale-in {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

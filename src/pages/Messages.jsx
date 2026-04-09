@@ -2,12 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { useRole } from '../context/RoleContext';
 import { 
   Search, Plus, Users, User, MessageCircle, ChevronLeft, 
-  Hash, Bell, Settings, UserPlus, MoreVertical, Shield, MapPin
+  Hash, Bell, BellOff, Settings, UserPlus, MoreVertical, Shield, MapPin,
+  Trash2, LogOut, Info, FileText, X
 } from 'lucide-react';
-import { useConversations, useMessages, useSendMessage, createDirectConversation } from '../hooks/useMessages';
+import { 
+  useConversations, useMessages, useSendMessage, createDirectConversation,
+  toggleMute, leaveBrigade, clearConversationMessages 
+} from '../hooks/useMessages';
 import { 
   collection, doc, onSnapshot, updateDoc, increment, setDoc,
-  getDocs, query, orderBy, where, addDoc 
+  getDocs, query, orderBy, where, addDoc, getDoc, arrayRemove, arrayUnion, deleteDoc
 } from '../lib/dbService';
 import { db } from '../firebaseConfig';
 import ChatBubble from '../components/ChatBubble';
@@ -37,11 +41,49 @@ const DEMO_BRIGADES_LIST = [
 ];
 
 export default function Messages() {
-  const { role, ROLES, currentUser } = useRole();
+  const { role, ROLES, currentUser, allUsers, sendNotification } = useRole();
   const assignments = currentUser?.assignments;
   const [activeConversation, setActiveConversation] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewChat, setShowNewChat] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [broadcastData, setBroadcastData] = useState({ title: '', text: '', targetRole: ROLES.BRIGADISTA });
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [activeMembers, setActiveMembers] = useState([]);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [pulseBell, setPulseBell] = useState(false);
+  const [showMultimediaModal, setShowMultimediaModal] = useState(false);
+
+  const handleSendBroadcast = async () => {
+    if (!broadcastData.text) return;
+    setIsBroadcasting(true);
+    try {
+      // Find all users with the target role (or hierarchy)
+      const usersToNotify = allUsers.filter(u => u.role === broadcastData.targetRole);
+      
+      for (const targetUser of usersToNotify) {
+        // Send internal notification
+        await sendNotification(targetUser.id || targetUser.uid, {
+          title: `📢 Aviso Masivo: ${broadcastData.title || 'Comunicado'}`,
+          body: broadcastData.text,
+          type: 'alert',
+          link: '/messages'
+        });
+        
+        // Also maybe create/update a direct chat thread? 
+        // For simplicity, we just send the notification which appears in their tray.
+      }
+      setShowBroadcastModal(false);
+      setBroadcastData({ title: '', text: '', targetRole: ROLES.BRIGADISTA });
+      alert(`Mensaje enviado a ${usersToNotify.length} usuarios.`);
+    } catch (e) {
+      console.error('Error broadcasting:', e);
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
   const [newChatType, setNewChatType] = useState(null); // 'direct' | 'brigade'
   const [availableUsers, setAvailableUsers] = useState([]);
   const [availableBrigades, setAvailableBrigades] = useState([]);
@@ -132,6 +174,14 @@ export default function Messages() {
     // Check last message for alarm trigger
     if (activeMessages.length > 0) {
       const lastMsg = activeMessages[activeMessages.length - 1];
+      
+      // Notification pulse logic
+      if (lastMsg.sentBy !== CURRENT_USER_ID) {
+        setPulseBell(true);
+        // Auto-clear pulse after 8 seconds
+        setTimeout(() => setPulseBell(false), 8000);
+      }
+
       if (lastMsg.isAlarm && lastMsg.sentBy !== CURRENT_USER_ID) {
         // Trigger alarm if not already alarming for this specific message
         if (!isAlarming || alarmMessage?.id !== lastMsg.id) {
@@ -353,12 +403,77 @@ export default function Messages() {
     }
   };
 
+  const handleToggleMute = async () => {
+    if (!activeConversation || activeConversation.id.startsWith('demo-')) return;
+    const isMuted = activeConversation.mutedBy?.includes(CURRENT_USER_ID);
+    try {
+      await toggleMute(activeConversation.id, CURRENT_USER_ID, isMuted);
+    } catch (error) {
+      console.error("Error toggling mute:", error);
+    }
+  };
+
+  const handleClearChat = async () => {
+    if (!activeConversation || activeConversation.id.startsWith('demo-')) return;
+    if (!window.confirm('¿Estás seguro de que deseas vaciar el historial de este chat? Esta acción es irreversible.')) return;
+    
+    try {
+      await clearConversationMessages(activeConversation.id);
+      setShowOptionsMenu(false);
+    } catch (error) {
+      console.error("Error clearing chat:", error);
+    }
+  };
+
+  const handleLeaveBrigade = async () => {
+    if (!activeConversation || activeConversation.id.startsWith('demo-')) return;
+    if (!window.confirm('¿Estás seguro de que deseas abandonar esta brigada?')) return;
+
+    try {
+      await leaveBrigade(activeConversation.id, CURRENT_USER_ID);
+      setActiveConversation(null);
+      setShowOptionsMenu(false);
+    } catch (error) {
+      console.error("Error leaving brigade:", error);
+    }
+  };
+  const handleShowMultimedia = () => {
+    setShowOptionsMenu(false);
+    setShowMultimediaModal(true);
+  };
+
+  const handleShowMembers = async () => {
+    setShowOptionsMenu(false);
+    setShowMembersModal(true);
+    setIsLoadingMembers(true);
+    try {
+      // In a real app, we'd fetch members properly. 
+      // For now, let's get participants from the conversation and then their user details.
+      const membersPromises = activeConversation.participants.map(async (uid) => {
+        // Find in allUsers first (for speed)
+        const existing = allUsers.find(u => u.uid === uid || u.id === uid);
+        if (existing) return existing;
+        
+        // Fallback to fetch from DB
+        const userDoc = await getDoc(doc(db, 'users', uid));
+        return userDoc.exists() ? { id: uid, ...userDoc.data() } : { id: uid, displayName: 'Usuario desconocido' };
+      });
+      
+      const members = await Promise.all(membersPromises);
+      setActiveMembers(members);
+    } catch (error) {
+      console.error("Error loading members:", error);
+    } finally {
+      setIsLoadingMembers(false);
+    }
+  };
+
   const getConversationName = (convo) => {
     if (convo.type === 'brigade') return convo.brigadeName || 'Brigada';
     if (convo.participantNames) {
       const otherNames = Object.entries(convo.participantNames)
         .filter(([uid]) => uid !== CURRENT_USER_ID)
-        .map(([, name]) => name);
+        .map(([, name]) => name?.replace(' undefined', ''));
       return otherNames.join(', ') || 'Chat Directo';
     }
     return 'Conversación';
@@ -372,8 +487,19 @@ export default function Messages() {
 
   const filteredConversations = allConversations.filter(c => {
     if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
     const name = getConversationName(c).toLowerCase();
-    return name.includes(searchTerm.toLowerCase());
+    
+    // Search in names
+    if (name.includes(term)) return true;
+    
+    // Search in folio if it's a direct chat
+    if (c.type === 'direct' && c.folio && c.folio.includes(term)) return true;
+    
+    // Search in sections for brigades
+    if (c.type === 'brigade' && c.sections?.some(s => s.includes(term))) return true;
+
+    return false;
   });
 
   return (
@@ -385,22 +511,39 @@ export default function Messages() {
 
       {/* Left Panel - Conversation List */}
       <div className={`messages-sidebar ${mobileView === 'chat' ? 'hidden-mobile' : ''}`}>
+        {/* Header with search and actions */}
         <div className="messages-sidebar-header">
-          <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Mensajes</h2>
-          <button className="btn" onClick={() => setShowNewChat(!showNewChat)} style={{ padding: '0.5rem' }}>
-            <Plus size={20} />
-          </button>
-        </div>
-
-        <div className="messages-search">
-          <Search size={16} className="messages-search-icon" />
-          <input
-            type="text"
-            className="messages-search-input"
-            placeholder="Buscar conversación..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+          <div className="messages-header-top">
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0 }}>Centro de Mensajes</h2>
+            <div className="flex gap-2">
+              <button 
+                className="btn btn-secondary flex items-center gap-1" 
+                style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}
+                onClick={() => setShowBroadcastModal(true)}
+              >
+                <Plus size={14} /> Difusión
+              </button>
+              <button 
+                className="btn btn-primary flex items-center gap-1" 
+                style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}
+                onClick={() => setShowNewChat(true)}
+              >
+                <Plus size={14} /> Nuevo Chat
+              </button>
+            </div>
+          </div>
+          
+          <div style={{ position: 'relative' }}>
+            <Search style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} size={18} />
+            <input 
+              type="text" 
+              className="input" 
+              style={{ width: '100%', paddingLeft: '3rem' }} 
+              placeholder="Buscar por nombre, #folio o sección..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
 
         {/* New chat selector */}
@@ -434,7 +577,13 @@ export default function Messages() {
                         <div key={u.id} className="contact-item" onClick={() => handleStartDirectChat(u)}>
                           <div className="contact-avatar">{u.displayName?.[0]}</div>
                           <div className="contact-info">
-                            <div className="contact-name">{u.displayName}</div>
+                            <div className="contact-name">
+                               {u.displayName?.replace(' undefined', '')} 
+{u.surname && !u.displayName?.includes(u.surname) ? ` ${u.surname}` : ''}
+                              <span style={{ fontSize: '0.7rem', color: 'var(--color-primary-light)', marginLeft: '0.5rem', opacity: 0.8 }}>
+                                #{u.folio || '00000'}
+                              </span>
+                            </div>
                             <div className="contact-role">{u.role} • Sect. {u.section}</div>
                           </div>
                         </div>
@@ -549,12 +698,47 @@ export default function Messages() {
                 </div>
               </div>
               <div className="messages-chat-header-actions">
-                <button className="btn" style={{ padding: '0.5rem' }} title="Notificaciones">
-                  <Bell size={18} />
+                <button 
+                  className={`btn ${activeConversation.mutedBy?.includes(CURRENT_USER_ID) ? 'muted' : ''} ${pulseBell ? 'bell-pulse-orange' : ''}`} 
+                  style={{ padding: '0.5rem' }} 
+                  title={activeConversation.mutedBy?.includes(CURRENT_USER_ID) ? "Activar notificaciones" : "Silenciar notificaciones"}
+                  onClick={() => {
+                    handleToggleMute();
+                    setPulseBell(false);
+                  }}
+                >
+                  {activeConversation.mutedBy?.includes(CURRENT_USER_ID) ? <BellOff size={18} /> : <Bell size={18} />}
                 </button>
-                <button className="btn" style={{ padding: '0.5rem' }} title="Más opciones">
-                  <MoreVertical size={18} />
-                </button>
+                <div style={{ position: 'relative' }}>
+                  <button 
+                    className="btn" 
+                    style={{ padding: '0.5rem' }} 
+                    title="Más opciones"
+                    onClick={() => setShowOptionsMenu(!showOptionsMenu)}
+                  >
+                    <MoreVertical size={18} />
+                  </button>
+                  
+                  {showOptionsMenu && (
+                    <div className="messages-options-dropdown animate-scale-in">
+                      <button className="option-item" onClick={handleShowMembers}>
+                        <Users size={16} /> Ver miembros
+                      </button>
+                      <button className="option-item" onClick={handleShowMultimedia}>
+                        <FileText size={16} /> Multimedia y archivos
+                      </button>
+                      <div className="option-divider"></div>
+                      <button className="option-item danger" onClick={handleClearChat}>
+                        <Trash2 size={16} /> Vaciar chat
+                      </button>
+                      {activeConversation.type === 'brigade' && (
+                        <button className="option-item danger" onClick={handleLeaveBrigade}>
+                          <LogOut size={16} /> Abandonar brigada
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -597,6 +781,148 @@ export default function Messages() {
             </div>
           </div>
         )}
+      </div>
+      {/* Broadcast Modal */}
+      {showBroadcastModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(6px)' }}>
+          <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '450px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Difusión de Mensaje Masivo</h2>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Envía una notificación push a todos los usuarios con un rol específico.</p>
+            
+            <div className="flex-col gap-2">
+              <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Rol Objetivo</label>
+              <select className="input" value={broadcastData.targetRole} onChange={(e) => setBroadcastData({...broadcastData, targetRole: e.target.value})}>
+                <option value={ROLES.ADMIN_ESTATAL}>Administradores Estatales</option>
+                <option value={ROLES.COORD_DISTRITAL_FED}>Coordinadores Federales</option>
+                <option value={ROLES.COORD_DISTRITAL_LOC}>Coordinadores Locales</option>
+                <option value={ROLES.COORD_SECCIONAL}>Coordinadores Seccionales</option>
+                <option value={ROLES.BRIGADISTA}>Brigadistas</option>
+              </select>
+            </div>
+
+            <div className="flex-col gap-2">
+              <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Título / Asunto</label>
+              <input type="text" className="input" placeholder="Ej. Urgente: Reunión de brigada" value={broadcastData.title} onChange={(e) => setBroadcastData({...broadcastData, title: e.target.value})} />
+            </div>
+
+            <div className="flex-col gap-2">
+              <label style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Mensaje</label>
+              <textarea className="input" rows={4} placeholder="Escriba el comunicado..." value={broadcastData.text} onChange={(e) => setBroadcastData({...broadcastData, text: e.target.value})}></textarea>
+            </div>
+
+            <div className="flex justify-between" style={{ marginTop: '1rem' }}>
+              <button className="btn" onClick={() => setShowBroadcastModal(false)} disabled={isBroadcasting} style={{ color: 'var(--text-secondary)' }}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleSendBroadcast} disabled={isBroadcasting || !broadcastData.text}>
+                {isBroadcasting ? 'Enviando...' : 'Enviar Comunicado'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Members Modal */}
+      {showMembersModal && (
+        <div 
+          className="modal-overlay" 
+          onClick={() => setShowMembersModal(false)}
+          style={{ zIndex: 1100 }}
+        >
+          <div 
+            className="members-modal animate-fade-in" 
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="members-modal-header">
+              <div>
+                <h2>Miembros della Conversación</h2>
+                <p>{activeConversation.type === 'brigade' ? 'Brigada operativa' : 'Chat directo'}</p>
+              </div>
+              <button className="btn-icon" onClick={() => setShowMembersModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="members-modal-body">
+              {isLoadingMembers ? (
+                <div className="members-loading">Cargando miembros...</div>
+              ) : (
+                <div className="members-list">
+                  {activeMembers.map(member => (
+                    <div key={member.id || member.uid} className="member-card">
+                      <div className="member-avatar">
+                        {(member.displayName || member.name)?.[0] || 'U'}
+                      </div>
+                      <div className="member-info">
+                        <div className="member-name">
+                          {(member.displayName || member.name)?.replace(' undefined', '')}
+                          {member.id === CURRENT_USER_ID && <span className="self-tag">Tú</span>}
+                        </div>
+                        <div className="member-role">{member.role || 'Rol no definido'}</div>
+                      </div>
+                      <div className="member-badge">
+                        {member.role === 'Super Admin' || member.role === 'Admin Estatal' ? <Shield size={12} /> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="members-modal-footer">
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setShowMembersModal(false)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Multimedia Modal */}
+      <MultimediaModal 
+        isOpen={showMultimediaModal}
+        onClose={() => setShowMultimediaModal(false)}
+        messages={activeMessages}
+      />
+    </div>
+  );
+}
+
+function MultimediaModal({ isOpen, onClose, messages }) {
+  if (!isOpen) return null;
+
+  const files = messages.filter(m => m.imageUrl || m.fileUrl || m.type === 'image' || m.type === 'file');
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="members-modal animate-scale-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+        <div className="members-modal-header">
+          <div>
+            <h2>Multimedia y Archivos</h2>
+            <p>{files.length} elementos compartidos</p>
+          </div>
+          <button className="btn" onClick={onClose}><X size={20} /></button>
+        </div>
+        <div className="members-modal-body">
+          {files.length === 0 ? (
+            <div className="members-loading">
+              <FileText size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+              <p>No se han compartido archivos en este chat aún.</p>
+            </div>
+          ) : (
+            <div className="multimedia-grid">
+              {files.map((file, idx) => (
+                <div key={idx} className="multimedia-item" onClick={() => window.open(file.imageUrl || file.fileUrl, '_blank')}>
+                  {file.imageUrl ? (
+                    <img src={file.imageUrl} alt="Multimedia" />
+                  ) : (
+                    <div className="multimedia-file-card">
+                      <FileText size={32} />
+                      <span className="file-name">{file.fileName || 'Archivo'}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
