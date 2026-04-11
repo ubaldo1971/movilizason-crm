@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Map, MessageSquare, ClipboardList, 
   UserPlus, FileCheck, AlertTriangle, Trophy, User, 
   LogOut, Shield, ChevronDown, Users, BarChart3, Bell, Scale, Swords,
-  Image as ImageIcon, Volume2
+  Image as ImageIcon, Volume2, TrendingUp, Layers
 } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
 import { useNotifications } from '../hooks/useNotifications';
@@ -16,8 +16,10 @@ import './MainLayout.css';
 
 const navItems = [
   { path: '/dashboard', label: 'Inicio', icon: LayoutDashboard },
+  { path: '/summary', label: 'Resumen Ejecutivo', icon: TrendingUp, highRankOnly: true },
   { path: '/messages', label: 'Mensajes', icon: MessageSquare, badge: true },
   { path: '/territory', label: 'Territorio', icon: Map },
+  { path: '/assets', label: 'Catálogo de Activos', icon: Layers, highRankOnly: true },
   { path: '/communication', label: 'Comando Central', icon: Volume2 },
   { path: '/tasks', label: 'Tareas', icon: ClipboardList },
   { path: '/estructura', label: 'Estructura', icon: Users, highRankOnly: true },

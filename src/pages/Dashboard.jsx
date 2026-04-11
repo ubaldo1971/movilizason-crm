@@ -232,6 +232,22 @@ export default function Dashboard() {
           <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Hola, {currentUser?.displayName || 'Usuario'}</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Rol activo: <strong style={{color: 'var(--color-primary-light)'}}>{role || 'Consultor'}</strong></p>
         </div>
+        { (role === ROLES.SUPER_ADMIN || role === ROLES.ADMIN_ESTATAL || role === ROLES.COORD_DISTRITAL_FED) && (
+          <button 
+            className="btn btn-primary" 
+            onClick={() => navigate('/summary')}
+            style={{ 
+              background: 'linear-gradient(135deg, var(--color-primary) 0%, #5a0016 100%)',
+              padding: '0.75rem 1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            <TrendingUp size={18} />
+            Ver Resumen Ejecutivo
+          </button>
+        )}
       </div>
 
       {/* KPIs */}

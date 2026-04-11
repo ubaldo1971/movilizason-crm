@@ -19,6 +19,8 @@ import Performance from './pages/Performance';
 import TaskScoring from './pages/TaskScoring';
 import Brigades from './pages/Brigades';
 import SupportContainer from './pages/SupportContainer';
+import ExecutiveSummary from './pages/ExecutiveSummary';
+import AssetsCatalog from './pages/AssetsCatalog';
 
 import { useRole } from './context/RoleContext';
 
@@ -34,8 +36,6 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        
         <Route path="/" element={<AuthGuard><MainLayout /></AuthGuard>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
@@ -54,7 +54,10 @@ function App() {
           <Route path="scoring" element={<TaskScoring />} />
           <Route path="brigades" element={<Brigades />} />
           <Route path="support" element={<SupportContainer />} />
+          <Route path="summary" element={<ExecutiveSummary />} />
+          <Route path="assets" element={<AssetsCatalog />} />
         </Route>
+        <Route path="/login" element={<Login />} />
       </Routes>
     </BrowserRouter>
   );
