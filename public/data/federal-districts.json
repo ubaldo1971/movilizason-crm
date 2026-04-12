@@ -1,0 +1,10 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Distrito Federal 1 (Hermosillo)" },
+      "geometry": { "type": "Polygon", "coordinates": [[[ -111.0, 29.1 ], [ -110.8, 29.1 ], [ -110.8, 28.9 ], [ -111.0, 28.9 ], [ -111.0, 29.1 ]]] }
+    }
+  ]
+}

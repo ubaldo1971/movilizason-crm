@@ -20,12 +20,16 @@ service cloud.firestore {
     
     // Configuración de la App (Permisos, etc.)
     match /app_config/{id} { allow read, write: if true; }
+    match /settings/{id} { allow read, write: if true; }
     match /voiceState/{id} { allow read, write: if true; }
     match /typingStatus/{id} { allow read, write: if true; }
     
     // Nueva infraestructura de comunicación dinámica
     match /comm_servers/{id} { allow read, write: if true; }
     match /comm_channels/{id} { allow read, write: if true; }
+
+    // Rastreo en tiempo real (active_locations)
+    match /active_locations/{locationId} { allow read, write: if true; }
 
     // Mensajería entre usuarios (Conversaciones)
     match /conversations/{convId} { 

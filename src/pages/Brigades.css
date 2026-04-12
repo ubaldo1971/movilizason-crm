@@ -185,7 +185,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-wrap: wrap; /* NEW: allow wrap for more meta info */
+  flex-wrap: wrap;
+  /* NEW: allow wrap for more meta info */
   margin-top: 0.25rem;
 }
 
@@ -273,8 +274,15 @@
 }
 
 @keyframes expandIn {
-  from { opacity: 0; max-height: 0; }
-  to { opacity: 1; max-height: 2000px; }
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+
+  to {
+    opacity: 1;
+    max-height: 2000px;
+  }
 }
 
 .brigade-section-title {
@@ -603,8 +611,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .brigade-modal {
@@ -613,7 +626,8 @@
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 620px;
-  max-height: 75vh; /* Reducido para asegurar espacio vertical */
+  max-height: 75vh;
+  /* Reducido para asegurar espacio vertical */
   margin: auto;
   display: flex;
   flex-direction: column;
@@ -623,20 +637,35 @@
 }
 
 @keyframes modalEnter {
-  from { transform: translateY(30px) scale(0.95); opacity: 0; }
-  to { transform: translateY(0) scale(1); opacity: 1; }
+  from {
+    transform: translateY(30px) scale(0.95);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .brigade-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 2rem; /* Padding horizontal incrementado */
+  padding: 1.25rem 2rem;
+  /* Padding horizontal incrementado */
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -661,7 +690,8 @@
 
 .brigade-modal-form {
   padding: 1.5rem 2rem;
-  overflow-y: auto; /* El formulario hace scroll, no el modal entero */
+  overflow-y: auto;
+  /* El formulario hace scroll, no el modal entero */
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -798,7 +828,7 @@
   padding: 0.4rem 0.75rem;
   border: 1px solid;
   border-radius: var(--radius-sm);
-  background: rgba(255,255,255,0.02);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 /* Hierarchy Selector (modal) */
@@ -915,12 +945,40 @@
    RESPONSIVE
    ═══════════════════════════════════════ */
 @media (max-width: 768px) {
-  .brigades-header { flex-direction: column; align-items: flex-start; }
-  .brigades-stats { grid-template-columns: repeat(2, 1fr); }
-  .brigade-card-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-  .brigade-card-right { align-self: flex-end; }
-  .brigade-perf-grid { grid-template-columns: repeat(3, 1fr); }
-  .brigade-actions-row { flex-direction: column; }
-  .brigade-action-main { justify-content: center; }
-  .brigade-modal { max-width: 100%; margin: 0; border-radius: var(--radius-md); }
+  .brigades-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .brigades-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .brigade-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .brigade-card-right {
+    align-self: flex-end;
+  }
+
+  .brigade-perf-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .brigade-actions-row {
+    flex-direction: column;
+  }
+
+  .brigade-action-main {
+    justify-content: center;
+  }
+
+  .brigade-modal {
+    max-width: 100%;
+    margin: 0;
+    border-radius: var(--radius-md);
+  }
 }

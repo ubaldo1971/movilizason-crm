@@ -18,7 +18,9 @@ const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 });
 
-// Enable Offline Persistence
+// Offline persistence disabled temporarily to prevent INTERNAL ASSERTION FAILED errors
+// in development mode when multiple tabs are open or cache is corrupted.
+/*
 enableIndexedDbPersistence(db).catch((err) => {
     if (err.code === 'failed-precondition') {
         process.env.NODE_ENV !== 'production' && console.warn("Firestore Persistence failed: Multiple tabs open.");
@@ -26,6 +28,7 @@ enableIndexedDbPersistence(db).catch((err) => {
         process.env.NODE_ENV !== 'production' && console.warn("Firestore Persistence failed: Browser not supported.");
     }
 });
+*/
 
 const storage = getStorage(app);
 const auth = getAuth(app);

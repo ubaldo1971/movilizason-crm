@@ -339,3 +339,79 @@
   background-color: rgba(249, 115, 22, 0.1) !important;
 }
 
+/* ══════════════════════════════════════════════
+   Hover-Reveal Sidebar Overlay
+   (for fullscreen pages like Territory)
+   ══════════════════════════════════════════════ */
+
+.sidebar-hover-zone {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 24px; /* Thin hover trigger strip */
+  z-index: 900;
+}
+
+/* When hovering the zone, expand to contain the sidebar */
+.sidebar-hover-zone:hover {
+  width: 260px;
+}
+
+/* Small floating tab indicator on the edge */
+.sidebar-hover-tab {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 56px;
+  background: var(--bg-surface);
+  border-radius: 0 12px 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-light, #e8536a);
+  border: 1px solid var(--border-color);
+  border-left: none;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.3);
+  z-index: 902;
+  transition: opacity 0.3s, transform 0.3s;
+  cursor: pointer;
+  animation: tab-glow 3s ease-in-out infinite;
+}
+
+@keyframes tab-glow {
+  0%, 100% { box-shadow: 2px 0 12px rgba(0, 0, 0, 0.3); }
+  50% { box-shadow: 2px 0 20px rgba(128, 0, 32, 0.4); }
+}
+
+/* Hide the tab when sidebar is revealed */
+.sidebar-hover-zone:hover .sidebar-hover-tab {
+  opacity: 0;
+  transform: translateY(-50%) translateX(-10px);
+  pointer-events: none;
+}
+
+/* The overlay sidebar — hidden by default, slides in on hover */
+.sidebar.sidebar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 100vh;
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s ease;
+  box-shadow: none;
+  z-index: 901;
+  pointer-events: none;
+  background: var(--bg-surface, #1a1a2e);
+}
+
+.sidebar-hover-zone:hover .sidebar.sidebar-overlay {
+  transform: translateX(0);
+  box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+

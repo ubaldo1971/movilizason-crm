@@ -39,7 +39,7 @@ export default function Login() {
             <Shield size={40} style={{ color: 'var(--color-primary)' }} />
           </div>
           <h1 style={{ fontSize: '2rem', fontWeight: '800', letterSpacing: '-0.025em', color: 'var(--text-primary)', margin: 0 }}>MovilizaSon</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Sistema de Control Territorial Operativo</p>
+          <p style={{ color: '#d4d8e0', fontSize: '0.9rem', fontWeight: '500' }}>Sistema de Control Territorial Operativo</p>
         </div>
 
         {error && (
@@ -62,7 +62,7 @@ export default function Login() {
 
         <form onSubmit={handleLogin} className="flex-col gap-4">
           <div className="input-group">
-            <label className="input-label" style={{ color: 'var(--text-secondary)', fontWeight: '500', fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>PIN de Acceso</label>
+            <label className="input-label" style={{ color: '#e0e3ea', fontWeight: '600', fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>PIN de Acceso</label>
             <div style={{ position: 'relative' }}>
               <input 
                 id="pin-input"
@@ -106,7 +106,7 @@ export default function Login() {
           </button>
         </form>
 
-        <div style={{ marginTop: '2.5rem', textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: '1.4', opacity: 0.7 }}>
+        <div style={{ marginTop: '2.5rem', textAlign: 'center', fontSize: '0.72rem', color: '#a8adb8', lineHeight: '1.5' }}>
           Acceso restringido. Uso monitoreado y sancionado conforme a la ley.
           <br />© 2026 MovilizaSon v2.0 - Comando Central
         </div>

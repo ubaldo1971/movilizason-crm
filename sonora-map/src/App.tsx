@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { Layers, MapPin, Plus, Trash2, CheckCircle2, AlertCircle, Clock, Menu, X, Activity, Filter, Users, Map as MapIcon, BarChart3, TrendingUp } from 'lucide-react';
+import { Layers, MapPin, Plus, Trash2, Menu, X, Activity, Filter, Users, BarChart3, TrendingUp, Sun, Moon, Globe, Mountain } from 'lucide-react';
 import HeatmapLayer from './HeatmapLayer';
+import { db } from './firebase';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 type MarkerState = 'completed' | 'in-progress' | 'pending';
 
@@ -17,6 +19,20 @@ interface MapMarker {
   responsible: string;
   district: string;
   progress: number;
+}
+
+interface ActiveLocation {
+  userId: string;
+  displayName: string;
+  surname?: string;
+  role: string;
+  brigadeName?: string;
+  color?: string;
+  lat: number;
+  lng: number;
+  heading?: number;
+  speed?: number;
+  status?: 'online' | 'offline';
 }
 
 const statusColors: Record<MarkerState, string> = {
@@ -66,6 +82,23 @@ const createCustomIcon = (state: MarkerState) => {
   });
 };
 
+const createLiveIcon = (role: string, customColor?: string) => {
+  // Use vibrant colors for live trackers (Uber-style)
+  const color = customColor || (role.includes('Admin') ? '#ef4444' : '#3b82f6');
+  return L.divIcon({
+    className: 'live-tracking-icon',
+    html: `<div style="position: relative;">
+      <div style="position: absolute; top: -10px; left: -10px; width: 40px; height: 40px; background: ${color}; opacity: 0.2; border-radius: 50%; animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="fill: ${color}; filter: drop-shadow(0 0 8px ${color}); position: relative;">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="3" fill="white"></circle>
+      </svg>
+    </div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+  });
+};
+
 function ClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
@@ -76,6 +109,7 @@ function ClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) =
 }
 
 export default function App() {
+  const [activeLocations, setActiveLocations] = useState<ActiveLocation[]>([]);
   const [markers, setMarkers] = useState<MapMarker[]>(() => {
     const saved = localStorage.getItem('sonora-map-markers');
     return saved ? JSON.parse(saved) : [];
@@ -100,10 +134,51 @@ export default function App() {
   const [filterCoordinator, setFilterCoordinator] = useState<string>('all');
 
   const [addingMode, setAddingMode] = useState(false);
+  const [mapStyle, setMapStyle] = useState('dark');
+
+  const mapStyles = {
+    dark: {
+      url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      attribution: '&copy; CARTO',
+      name: 'Nocturno',
+      icon: <Moon size={16} />
+    },
+    light: {
+      url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      attribution: '&copy; CARTO',
+      name: 'Día',
+      icon: <Sun size={16} />
+    },
+    satellite: {
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      attribution: 'Tiles &copy; Esri',
+      name: 'Satélite',
+      icon: <Globe size={16} />
+    },
+    terrain: {
+      url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+      attribution: '&copy; OpenTopoMap',
+      name: 'Terreno',
+      icon: <Mountain size={16} />
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('sonora-map-markers', JSON.stringify(markers));
   }, [markers]);
+
+  // Firestore Subscription for Live Tracking
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'active_locations'), (snapshot) => {
+      const locations = snapshot.docs.map(doc => ({
+        ...doc.data()
+      })) as ActiveLocation[];
+      setActiveLocations(locations);
+    }, (error) => {
+      console.error("Firestore live tracking error:", error);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (showSections && !sectionsData) fetch('/data/sections.json').then(r => r.json()).then(setSectionsData).catch(console.error);
@@ -163,10 +238,15 @@ export default function App() {
 
   const heatmapData = useMemo(() => {
     // Return format: [lat, lng, intensity]
-    // Intensity could be based on progress (less progress = hotter, or more progress = hotter). 
-    // Here we just use a flat density (1) to show "hotspots" of operations
-    return filteredMarkers.map(m => [m.lat, m.lng, 1] as [number, number, number]);
-  }, [filteredMarkers]);
+    const points: [number, number, number][] = filteredMarkers.map(m => [m.lat, m.lng, 1] as [number, number, number]);
+    
+    // Add live locations to heatmap with higher weight
+    activeLocations.forEach(loc => {
+      points.push([loc.lat, loc.lng, 2]);
+    });
+
+    return points;
+  }, [filteredMarkers, activeLocations]);
 
   return (
     <div className="flex h-screen bg-slate-900 text-slate-100 font-sans overflow-hidden">
@@ -319,9 +399,33 @@ export default function App() {
           style={{ width: '100%', height: '100%' }}
         >
           <TileLayer
-            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            attribution={mapStyles[mapStyle as keyof typeof mapStyles].attribution}
+            url={mapStyles[mapStyle as keyof typeof mapStyles].url}
           />
+
+          {/* Map Style Switcher (Floating) */}
+          <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+            <div className="bg-slate-800/90 p-1.5 rounded-2xl shadow-2xl border border-slate-700/50 backdrop-blur-xl">
+              <div className="flex flex-col gap-1">
+                {Object.entries(mapStyles).map(([key, style]) => (
+                  <button
+                    key={key}
+                    onClick={() => setMapStyle(key)}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-300 group ${
+                      mapStyle === key 
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' 
+                      : 'hover:bg-slate-700/50 text-slate-400 hover:text-slate-100'
+                    }`}
+                  >
+                    <span className={`${mapStyle === key ? 'text-white' : 'text-blue-400'} transition-transform duration-300 group-hover:scale-110`}>
+                      {style.icon}
+                    </span>
+                    <span className="text-xs font-bold tracking-tight pr-1">{style.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           
           <ClickHandler onMapClick={handleMapClick} />
 
@@ -485,6 +589,29 @@ export default function App() {
                   >
                     <Trash2 size={14} /> Eliminar Intervención
                   </button>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* Live Tracking Markers */}
+          {activeLocations.map((loc) => (
+            <Marker
+              key={loc.userId}
+              position={[loc.lat, loc.lng]}
+              icon={createLiveIcon(loc.role, loc.color)}
+            >
+              <Popup>
+                <div className="p-2 min-w-[150px]">
+                  <div className="font-bold text-blue-600 flex items-center gap-2" style={{ color: loc.color || '#3b82f6' }}>
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    Live: {loc.displayName} {loc.surname || ''}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">{loc.role}</div>
+                  <div className="text-[10px] text-slate-400 mt-2 uppercase tracking-tighter">Brigada: {loc.brigadeName || 'Sin brigada'}</div>
+                  <div className="mt-2 text-[10px] bg-slate-100 p-1 rounded">
+                    Velocidad: {Math.round(loc.speed || 0)} km/h
+                  </div>
                 </div>
               </Popup>
             </Marker>

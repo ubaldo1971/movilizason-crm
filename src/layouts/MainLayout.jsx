@@ -12,6 +12,10 @@ import NotificationCenter from '../components/NotificationCenter';
 import AlarmOverlay from '../components/AlarmOverlay';
 import { useAlarm } from '../hooks/useAlarm';
 import { useConversations } from '../hooks/useMessages';
+import { useTheme } from '../context/ThemeContext';
+import ThemeModal from '../components/ThemeModal';
+import { Sun, Moon } from 'lucide-react';
+import { useRealtimeTracking } from '../hooks/useRealtimeTracking';
 import './MainLayout.css';
 
 const navItems = [
@@ -49,9 +53,14 @@ export default function MainLayout() {
   const location = useLocation();
   const [showRoleSelector, setShowRoleSelector] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const { theme } = useTheme();
   const { isAlarming, alarmMessage, triggerAlarm, stopAlarm } = useAlarm();
   const dismissedAlarmIds = useRef(new Set());
   
+  // Activate real-time tracking
+  useRealtimeTracking();
+
   const CURRENT_USER_ID = currentUser?.uid || 'admin_demo';
   const { 
     notifications, 
@@ -63,7 +72,8 @@ export default function MainLayout() {
 
   const { conversations } = useConversations(CURRENT_USER_ID, role, assignments);
 
-  const isMessagesPage = location.pathname === '/messages';
+  const isFlushPage = location.pathname === '/messages' || location.pathname === '/territory';
+  const isFullscreenPage = location.pathname === '/territory';
 
   // Global Alarm Monitor (Foreground Messages)
   useEffect(() => {
@@ -105,97 +115,122 @@ export default function MainLayout() {
     ...allUsers.filter(u => u.uid !== 'admin_demo').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5)
   ];
 
+  const sidebarContent = (
+    <>
+      <div className="sidebar-header">
+        <div className="logo-container">
+          <Shield className="logo-icon" />
+          <span className="logo-text">MovilizaSon</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button 
+            className="sidebar-bell-btn" 
+            onClick={() => setShowThemeModal(true)}
+            title="Ajustes de Vista"
+          >
+            {theme === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+          <button 
+            className={`sidebar-bell-btn ${unreadCount > 0 ? 'bell-warning-blink' : ''}`} 
+            onClick={() => setShowNotifications(true)}
+            title="Centro de Alertas"
+            style={{ position: 'relative' }}
+          >
+            <Bell size={18} />
+            {unreadCount > 0 && (
+              <span className="notification-badge-pulse">{unreadCount}</span>
+            )}
+          </button>
+          <span className="logo-badge">CRM</span>
+        </div>
+      </div>
+
+      <nav className="sidebar-nav">
+        {navItems.filter(item => {
+          if (item.adminOnly && role !== ROLES.SUPER_ADMIN) return false;
+          if (item.superAdminOnly && role !== ROLES.SUPER_ADMIN) return false;
+          if (item.highRankOnly && role !== ROLES.SUPER_ADMIN && role !== ROLES.ADMIN_ESTATAL) return false;
+          return true;
+        }).map((item) => (
+          <NavLink 
+            key={item.path} 
+            to={item.path}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <item.icon className="nav-icon" size={20} />
+            <span className="nav-label">{item.label}</span>
+            {item.badge && (
+              <span className="nav-badge">3</span>
+            )}
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="sidebar-footer">
+        <div className="role-selector-container">
+          <button 
+            className="role-selector-btn"
+            onClick={() => setShowRoleSelector(!showRoleSelector)}
+          >
+            <div className="flex-col" style={{ alignItems: 'flex-start' }}>
+              <span className="role-user-name">{currentUser.displayName} {currentUser.surname}</span>
+              <span className="role-current-name">{role}</span>
+            </div>
+            <ChevronDown size={16} />
+          </button>
+          
+          {showRoleSelector && (
+            <div className="role-dropdown">
+              <div style={{ padding: '8px 12px', fontSize: '0.7rem', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)', marginBottom: '4px' }}>Cambiar Rol (Demo)</div>
+              {Object.values(ROLES).map(r => (
+                <button 
+                  key={r}
+                  className={`role-option ${role === r ? 'active' : ''}`}
+                  onClick={() => { 
+                    if (currentUser?.uid) {
+                      updateProfile(currentUser.uid, { role: r });
+                    }
+                    setShowRoleSelector(false); 
+                    if (r === ROLES.BRIGADISTA && location.pathname !== '/tasks') navigate('/tasks');
+                  }}
+                >
+                  <div className="flex-col" style={{ alignItems: 'flex-start' }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{r}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button onClick={handleLogout} className="logout-btn">
+          <LogOut size={20} />
+          <span>Cerrar Sesión</span>
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <div className="layout-container">
-      {/* Sidebar - Desktop Only */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="logo-container">
-            <Shield className="logo-icon" />
-            <span className="logo-text">MovilizaSon</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
-              className={`sidebar-bell-btn ${unreadCount > 0 ? 'bell-warning-blink' : ''}`} 
-              onClick={() => setShowNotifications(true)}
-              title="Centro de Alertas"
-              style={{ position: 'relative' }}
-            >
+      {/* Normal Sidebar (non-fullscreen pages) */}
+      {!isFullscreenPage && (
+        <aside className="sidebar">
+          {sidebarContent}
+        </aside>
+      )}
 
-              <Bell size={18} />
-              {unreadCount > 0 && (
-                <span className="notification-badge-pulse">{unreadCount}</span>
-              )}
-            </button>
-            <span className="logo-badge">CRM</span>
+      {/* Hover-reveal Sidebar Overlay (fullscreen pages like Territory) */}
+      {isFullscreenPage && (
+        <div className="sidebar-hover-zone">
+          <div className="sidebar-hover-tab">
+            <Shield size={16} />
           </div>
+          <aside className="sidebar sidebar-overlay">
+            {sidebarContent}
+          </aside>
         </div>
-
-        <nav className="sidebar-nav">
-          {navItems.filter(item => {
-            if (item.adminOnly && role !== ROLES.SUPER_ADMIN) return false;
-            if (item.superAdminOnly && role !== ROLES.SUPER_ADMIN) return false;
-            if (item.highRankOnly && role !== ROLES.SUPER_ADMIN && role !== ROLES.ADMIN_ESTATAL) return false;
-            return true;
-          }).map((item) => (
-            <NavLink 
-              key={item.path} 
-              to={item.path}
-              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-            >
-              <item.icon className="nav-icon" size={20} />
-              <span className="nav-label">{item.label}</span>
-              {item.badge && (
-                <span className="nav-badge">3</span>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="sidebar-footer">
-          {/* Mock Role Selector Dropdown */}
-          <div className="role-selector-container">
-            <button 
-              className="role-selector-btn"
-              onClick={() => setShowRoleSelector(!showRoleSelector)}
-            >
-              <div className="flex-col" style={{ alignItems: 'flex-start' }}>
-                <span className="role-user-name">{currentUser.displayName} {currentUser.surname}</span>
-                <span className="role-current-name">{role}</span>
-              </div>
-              <ChevronDown size={16} />
-            </button>
-            
-            {showRoleSelector && (
-              <div className="role-dropdown">
-                <div style={{ padding: '8px 12px', fontSize: '0.7rem', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)', marginBottom: '4px' }}>Cambiar Rol (Demo)</div>
-                {Object.values(ROLES).map(r => (
-                  <button 
-                    key={r}
-                    className={`role-option ${role === r ? 'active' : ''}`}
-                    onClick={() => { 
-                      if (currentUser?.uid) {
-                        updateProfile(currentUser.uid, { role: r });
-                      }
-                      setShowRoleSelector(false); 
-                      if (r === ROLES.BRIGADISTA && location.pathname !== '/tasks') navigate('/tasks');
-                    }}
-                  >
-                    <div className="flex-col" style={{ alignItems: 'flex-start' }}>
-                      <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{r}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <button onClick={handleLogout} className="logout-btn">
-            <LogOut size={20} />
-            <span>Cerrar Sesión</span>
-          </button>
-        </div>
-      </aside>
+      )}
 
       {/* Main Content Area */}
       <main className="main-content relative">
@@ -217,7 +252,7 @@ export default function MainLayout() {
           </button>
         </header>
 
-        <div className={`page-container ${isMessagesPage ? 'page-container-flush' : ''}`}>
+        <div className={`page-container ${isFlushPage ? 'page-container-flush' : ''}`}>
           <Outlet />
         </div>
       </main>
@@ -256,6 +291,11 @@ export default function MainLayout() {
       {isAlarming && alarmMessage && (
         <AlarmOverlay message={alarmMessage} onDismiss={handleDismissAlarm} />
       )}
+
+      <ThemeModal 
+        isOpen={showThemeModal} 
+        onClose={() => setShowThemeModal(false)} 
+      />
     </div>
   );
 }

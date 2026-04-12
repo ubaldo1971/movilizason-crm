@@ -1,0 +1,637 @@
+/* ============================================================
+   Territory.css — Sonora Tracker Clone (Pure CSS)
+   A pixel-perfect clone of the standalone sonora-map app
+   ============================================================ */
+
+.territory-root {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: 100%;
+  background-color: #0f172a;
+  color: #f1f5f9;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ─── Left Sidebar Panel ─── */
+.territory-sidebar {
+  width: 300px;
+  min-width: 300px;
+  flex-shrink: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #1e293b;
+  border-right: 1px solid #334155;
+  position: relative;
+  z-index: 5;
+  overflow: hidden;
+}
+
+.territory-sidebar-inner {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  gap: 24px;
+}
+
+/* Custom scrollbar for sidebar */
+.territory-sidebar-inner::-webkit-scrollbar {
+  width: 6px;
+}
+.territory-sidebar-inner::-webkit-scrollbar-track {
+  background: transparent;
+}
+.territory-sidebar-inner::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+.territory-sidebar-inner::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* ─── Title / Brand ─── */
+.territory-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.territory-brand-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #60a5fa;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.territory-brand-sub {
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* ─── Summary Card ─── */
+.territory-summary-card {
+  background: rgba(15, 23, 42, 0.5);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+}
+
+.territory-summary-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px 0;
+}
+
+.territory-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.territory-stat-box {
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.territory-stat-box.completed {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+.territory-stat-box.active {
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+.territory-stat-box.pending {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.territory-stat-number {
+  font-size: 1.25rem;
+  font-weight: 900;
+}
+.territory-stat-number.green { color: #4ade80; }
+.territory-stat-number.yellow { color: #facc15; }
+.territory-stat-number.red { color: #f87171; }
+
+.territory-stat-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+/* Progress Row */
+.territory-progress-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+}
+
+.territory-progress-label {
+  color: #94a3b8;
+}
+
+.territory-progress-value {
+  font-weight: 700;
+  color: #60a5fa;
+}
+
+.territory-progress-bar-bg {
+  width: 100%;
+  background: #334155;
+  border-radius: 999px;
+  height: 6px;
+  overflow: hidden;
+}
+
+.territory-progress-bar-fill {
+  background: #3b82f6;
+  height: 6px;
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+/* ─── View Mode Toggle ─── */
+.territory-view-toggle {
+  display: flex;
+  background: rgba(51, 65, 85, 0.5);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.territory-view-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: transparent;
+  color: #94a3b8;
+}
+
+.territory-view-btn:hover {
+  color: #e2e8f0;
+}
+
+.territory-view-btn.active-markers {
+  background: #475569;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.territory-view-btn.active-heatmap {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fb923c;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* ─── Section Title (Capas / Filtros) ─── */
+.territory-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.territory-section-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+/* ─── Layer Toggles ─── */
+.territory-layers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.territory-layer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(51, 65, 85, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.territory-layer-item:hover {
+  background: #334155;
+}
+
+.territory-layer-item span {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #e2e8f0;
+}
+
+.territory-layer-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* ─── Filters ─── */
+.territory-filters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.territory-filter-select {
+  width: 100%;
+  padding: 10px 12px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #e2e8f0;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  appearance: auto;
+}
+
+.territory-filter-select:focus {
+  border-color: #3b82f6;
+}
+
+.territory-filter-select option {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+/* ─── Action Button ─── */
+.territory-action-area {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: auto;
+}
+
+.territory-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  background: #2563eb;
+  color: #fff;
+}
+
+.territory-action-btn:hover {
+  background: #3b82f6;
+}
+
+.territory-action-btn.adding {
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(37, 99, 235, 0.5);
+  animation: territory-pulse 2s infinite;
+}
+
+@keyframes territory-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ─── Map Container ─── */
+.territory-map-area {
+  flex: 1;
+  position: relative;
+  height: 100%;
+  background: #020617;
+}
+
+.territory-map-area .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #020617;
+}
+
+/* ─── Map Style Switcher ─── */
+.territory-map-style-switcher {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+}
+
+.territory-map-style-panel {
+  background: rgba(30, 41, 59, 0.9);
+  padding: 6px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.territory-map-style-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.territory-map-style-btn:hover {
+  background: rgba(51, 65, 85, 0.5);
+  color: #f1f5f9;
+}
+
+.territory-map-style-btn.active {
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+}
+
+.territory-map-style-btn .style-icon {
+  transition: transform 0.3s;
+}
+
+.territory-map-style-btn:hover .style-icon {
+  transform: scale(1.1);
+}
+
+.territory-map-style-btn.active .style-icon {
+  color: #fff;
+}
+
+.territory-map-style-btn:not(.active) .style-icon {
+  color: #60a5fa;
+}
+
+/* ─── Adding Mode Toast ─── */
+.territory-toast {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: #2563eb;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 999px;
+  font-weight: 500;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  animation: territory-bounce 1s infinite;
+}
+
+@keyframes territory-bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-6px); }
+}
+
+/* ─── Popup Overrides ─── */
+.territory-root .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.territory-root .leaflet-popup-content {
+  margin: 12px;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+.territory-popup-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 280px;
+}
+
+.territory-popup-header {
+  font-weight: 700;
+  color: #1e293b;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.territory-popup-badge {
+  font-size: 0.625rem;
+  color: #94a3b8;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.territory-popup-row {
+  display: flex;
+  gap: 8px;
+}
+
+.territory-popup-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.territory-popup-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.territory-popup-input {
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #f8fafc;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  color: #1e293b;
+}
+
+.territory-popup-input:focus {
+  border-color: #3b82f6;
+}
+
+.territory-popup-textarea {
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: #f8fafc;
+  outline: none;
+  resize: none;
+  width: 100%;
+  box-sizing: border-box;
+  color: #1e293b;
+  font-family: inherit;
+}
+
+.territory-popup-range {
+  width: 100%;
+  accent-color: #3b82f6;
+}
+
+.territory-popup-progress-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.territory-popup-progress-value {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #475569;
+}
+
+.territory-popup-delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 4px;
+  width: 100%;
+  padding: 6px 0;
+  background: #fef2f2;
+  color: #dc2626;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.territory-popup-delete-btn:hover {
+  background: #fee2e2;
+}
+
+/* ─── Custom Leaflet icon fix ─── */
+.territory-root .custom-leaflet-icon {
+  background: none !important;
+  border: none !important;
+}
+
+/* ─── Live Tracking Animations ─── */
+@keyframes ping {
+  0% { transform: scale(1); opacity: 0.8; }
+  70%, 100% { transform: scale(2.5); opacity: 0; }
+}
+
+.live-tracking-icon {
+  background: none !important;
+  border: none !important;
+}
+
+/* ─── Live Popup Styling ─── */
+.territory-live-popup {
+  min-width: 180px;
+  padding: 4px;
+}
+
+.live-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: pulse-dot 1.5s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.live-role {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.live-brigade {
+  font-size: 0.8rem;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.live-speed {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-style: italic;
+}

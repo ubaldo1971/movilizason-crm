@@ -8,31 +8,11 @@
   
   --color-secondary: #f4a261; /* Color de acento cálido */
   
-  /* Neutral scale - Dark theme default for "centro de mando" feel */
-  --bg-app: #0f1115;
-  --bg-surface: #1a1d24;
-  --bg-surface-elevated: #252a34;
-  --bg-surface-hover: #2e3440;
-  
-  --border-color: #383f4f;
-  --border-color-light: #495266;
-  
-  /* Text */
-  --text-primary: #f8f9fa;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
-  
   /* Status Colors */
   --status-success: #10b981;
   --status-warning: #f59e0b;
   --status-error: #ef4444;
   --status-info: #3b82f6;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 0 15px rgba(128, 0, 32, 0.5);
 
   /* Spacing */
   --space-1: 0.25rem;
@@ -55,6 +35,47 @@
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Default Dark Theme Variables */
+  --bg-app: #0f1115;
+  --bg-surface: #1a1d24;
+  --bg-surface-elevated: #252a34;
+  --bg-surface-hover: #2e3440;
+  
+  --border-color: #424a5c;
+  --border-color-light: #566178;
+  
+  --text-primary: #ffffff;
+  --text-secondary: #c8cdd6;
+  --text-muted: #8d95a3;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 15px rgba(128, 0, 32, 0.5);
+}
+
+[data-theme="light"] {
+  --bg-app: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f8fafc;
+  --bg-surface-hover: #f1f5f9;
+  
+  --border-color: #e2e8f0;
+  --border-color-light: #cbd5e1;
+  
+  /* High contrast text */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+
+  /* Primary color variants for Light Mode to maintain readability */
+  --color-primary-light: #800020; /* Overridden to dark primary for readability on светлый back */
+
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 15px rgba(128, 0, 32, 0.15);
 }
 
 * {
@@ -110,10 +131,10 @@ input, textarea, select {
 }
 
 .glass-panel {
-  background: rgba(26, 29, 36, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(26, 29, 36, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* Utility layout */

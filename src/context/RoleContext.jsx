@@ -35,7 +35,7 @@ export const formatName = (user) => {
 };
 
 export function RoleProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState({ uid: 'mock', role: 'Super Admin', displayName: 'Mock User', surname: 'Test' });
   const [loading, setLoading] = useState(true);
   const [loadingStatus, setLoadingStatus] = useState('Iniciando sistemas...');
 

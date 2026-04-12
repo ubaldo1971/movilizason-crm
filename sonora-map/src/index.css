@@ -13,3 +13,20 @@ html, body, #root {
   height: 100%;
   width: 100%;
 }
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.live-tracking-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-leaflet-icon {
+  background: transparent !important;
+  border: none !important;
+}

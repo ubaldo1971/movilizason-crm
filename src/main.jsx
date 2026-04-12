@@ -5,6 +5,7 @@ import './index.css';
 import 'leaflet/dist/leaflet.css';
 import { RoleProvider } from './context/RoleContext';
 import { CommunicationProvider } from './context/CommunicationContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 // --- Emergency Recovery Error Boundary ---
 class GlobalErrorBoundary extends Component {
@@ -73,9 +74,11 @@ try {
     <StrictMode>
       <GlobalErrorBoundary>
         <RoleProvider>
-          <CommunicationProvider>
-            <App />
-          </CommunicationProvider>
+          <ThemeProvider>
+            <CommunicationProvider>
+              <App />
+            </CommunicationProvider>
+          </ThemeProvider>
         </RoleProvider>
       </GlobalErrorBoundary>
     </StrictMode>

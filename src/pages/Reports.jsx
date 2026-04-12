@@ -62,13 +62,13 @@ export default function Reports() {
         citizenPhone: citizenPhone || 'Sin teléfono',
         imageUrl: imagePreview, // En producción usaría Firebase Storage
         status: 'PENDING',
-        createdBy: currentUser.uid,
-        userFolio: currentUser.folio || '00000',
-        userName: currentUser.displayName,
-        userRole: currentUser.role,
-        section: currentUser.section || '0000',
-        distFederal: currentUser.distFederal || '0',
-        distLocal: currentUser.distLocal || '0',
+        createdBy: currentUser?.uid || 'unknown',
+        userFolio: currentUser?.folio || '00000',
+        userName: currentUser?.displayName || 'Brigadista',
+        userRole: currentUser?.role || 'Guest',
+        section: currentUser?.section || '0000',
+        distFederal: currentUser?.distFederal || '0',
+        distLocal: currentUser?.distLocal || '0',
         createdAt: serverTimestamp(),
         timestamp: new Date().toISOString()
       };
