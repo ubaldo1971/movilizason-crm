@@ -23,6 +23,9 @@ export default function Profile() {
         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem', fontFamily: 'monospace' }}>
           FOLIO: #{currentUser?.folio || '00000'}
         </div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--color-primary-light)', marginTop: '0.5rem', opacity: 0.8, fontWeight: 500 }}>
+          INTELIGENCIA ELECTORAL ESTATAL
+        </div>
         <div className="flex items-center justify-center gap-1" style={{ marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
           <Map size={14} /> Distrito 4, Hermosillo
         </div>

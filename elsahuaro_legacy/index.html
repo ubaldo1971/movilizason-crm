@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oblivion Inc. | Cartografía Electoral</title>
+    
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Roboto+Slab:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="./css/index.css">
+    <link rel="shortcut icon" href="./img/favicon.ico" type="image/x-icon">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #b5261e 0%, #772017 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --bg: #f8fafc;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body {
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(181, 38, 30, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(181, 38, 30, 0.05) 0px, transparent 50%);
+            color: var(--text-dark);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 90%;
+            text-align: center;
+            padding: 2.5rem 1.75rem;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.8);
+        }
+
+        .logo {
+            width: 120px;
+            margin-bottom: 1.25rem;
+            filter: drop-shadow(0 10px 15px rgba(181, 38, 30, 0.2));
+            transition: transform 0.3s ease;
+        }
+        
+        .logo:hover {
+            transform: scale(1.05);
+        }
+
+        h1 {
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 2.5rem;
+            font-weight: 400;
+            max-width: 550px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2.5rem;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #eef2f6;
+            border-radius: 1.25rem;
+            padding: 2rem 1.5rem;
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+
+        .card:hover {
+            transform: translateY(-12px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.1);
+            border-color: #b5261e;
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1.25rem;
+            background: #fff5f5;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover .card-icon {
+            background: #b5261e;
+            transform: rotate(5deg) scale(1.1);
+        }
+
+        .card h2 {
+            margin: 0 0 0.8rem 0;
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            letter-spacing: -0.02em;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn {
+            background: #b5261e;
+            color: white;
+            padding: 0.9rem 2rem;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s;
+            width: 80%;
+        }
+
+        .card:hover .btn {
+            background: #772017;
+            box-shadow: 0 10px 20px rgba(181, 38, 30, 0.2);
+        }
+
+        footer {
+            margin-top: 3rem;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 2.2rem; }
+            .container { padding: 2rem 1rem; width: 95%; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="./img/defensa-elecciones-2021-alt.png" alt="Logo Oblivion Inc." class="logo">
+        <h1>Cartografía Electoral Sonora</h1>
+        <p class="subtitle">Herramientas estratégicas de **Oblivion Inc.** para el análisis de distritos y secciones electorales.</p>
+
+        <div class="grid">
+            <a href="./distritos.html" class="card">
+                <div class="card-icon">🗺️</div>
+                <h2>Distribución Distrital</h2>
+                <p>Explora la conformación de distritos federales y locales. Visualización estadística premium por demarcación.</p>
+                <div class="btn">Explorar Mapa</div>
+            </a>
+
+            <a href="./secciones.html" class="card">
+                <div class="card-icon">🔍</div>
+                <h2>Identidad Electoral</h2>
+                <p>Localiza cualquier sección electoral y consulta datos territoriales con precisión geográfica.</p>
+                <div class="btn">Buscar Sección</div>
+            </a>
+        </div>
+    </div>
+
+    <footer class="footer-simple">
+      <p>&copy; 2026 Oblivion Inc. | Inteligencia electoral estatal</p>
+    </footer>
+</body>
+</html>

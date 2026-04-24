@@ -104,12 +104,13 @@ export {
   serverTimestamp
 };
 
-// --- STORAGE MOCKS ---
-export const ref = (storage, path) => ({ type: 'storage_ref', path });
-export const uploadBytes = async (storageRef, file) => ({ ref: storageRef });
-export const getDownloadURL = async (storageRef) => {
-  return "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=1000";
-};
+// --- REAL STORAGE EXPORTS ---
+export { storage } from '../firebaseConfig';
+export {
+  ref,
+  uploadBytes,
+  getDownloadURL
+} from 'firebase/storage';
 export const seedDemoUsers = async () => {
     const demoUsers = [
         { displayName: 'Juan', surname: 'Robles', email: 'juan.robles@movilizason.com', phone: '6621234567', pin: '123456', role: 'Registered', status: 'active', points: 0, medals: 0, photoURL: 'https://i.pravatar.cc/150?u=juan' },

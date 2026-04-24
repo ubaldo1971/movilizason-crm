@@ -81,7 +81,7 @@ export default function ExecutiveSummary() {
         <div className="summary-header-content">
           <div className="summary-badge">RESUMEN EJECUTIVO</div>
           <h1>Estado del Proyecto MovilizaSon</h1>
-          <p>Visualización estratégica de avances, fases y métricas operativas al 2026.</p>
+          <p>Inteligencia electoral estatal | Avances y métricas operativas al 2026.</p>
         </div>
         <div className="summary-header-actions">
           <button className="btn-summary-outline" onClick={handleExport}>

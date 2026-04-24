@@ -9,7 +9,7 @@ import { getAI, getGenerativeModel, GoogleAIBackend } from 'firebase/ai';
 const ai = getAI(app, { backend: new GoogleAIBackend() });
 
 const model = getGenerativeModel(ai, {
-  model: 'gemini-2.0-flash',
+  model: 'gemini-1.5-flash',
 });
 
 const INE_PROMPT = `Analiza esta imagen de una credencial INE (Instituto Nacional Electoral) de México.
@@ -84,19 +84,19 @@ export async function scanINE(base64DataUrl) {
 
     // Specific error handling for Quota/Auth
     if (err.message?.includes('429') || err.message?.includes('Quota')) {
-      return { success: false, error: '[ERR-IA-429] Límite de cuota excedido en Google Cloud. Usa captura manual.' };
+      return { success: false, error: 'Sistema saturado temporalmente. Por favor, usa captura manual por el momento.' };
     }
     if (err.message?.includes('403') || err.message?.includes('permission')) {
-      return { success: false, error: '[ERR-IA-403] Permisos denegados. Revisa la consola de Google Cloud.' };
+      return { success: false, error: 'Error de acceso a la IA. Reporta este problema a soporte técnico.' };
     }
     if (err.message?.includes('JSON')) {
-      return { success: false, error: '[ERR-IA-JSON] No se pudo leer la respuesta de la IA. Intenta otra foto.' };
+      return { success: false, error: 'La imagen no es lo suficientemente clara. Toma una foto con mejor iluminación.' };
     }
     if (err.message?.includes('network') || err.message?.includes('fetch')) {
-      return { success: false, error: '[ERR-IA-NET] Error de comunicación con el servidor de IA.' };
+      return { success: false, error: 'Sin conexión estable para procesar la imagen. Verifica tu señal.' };
     }
 
-    return { success: false, error: '[ERR-IA-UNK] Error desconocido: ' + (err.message?.slice(0, 50) || 'no-info') };
+    return { success: false, error: 'No se pudo procesar la INE. Intenta capturar manualmente.' };
   }
 }
 

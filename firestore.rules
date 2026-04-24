@@ -4,13 +4,14 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // Reglas Operativas para MovilizaSon CRM
-    match /users/{userId} { allow read, write: if true; }
+    // Nota: Actualmente usando sistema de PIN local. Transicionar a request.auth != null en fase 3.
+    match /users/{userId} { allow read: if true; allow write: if true; }
     match /tasks/{taskId} { allow read, create, update: if true; allow delete: if false; }
     match /messages/{messageId} { allow read, write: if true; }
     match /evidence/{evidenceId} { allow read, write: if true; }
     match /reports/{reportId} { allow read, write: if true; }
     
-    // Catálogos y Datos Maestro
+    // Catálogos y Datos Maestro (SOLO LECTURA)
     match /medalTypes/{id} { allow read: if true; allow write: if false; }
     match /commitmentTypes/{id} { allow read: if true; allow write: if false; }
     
@@ -18,9 +19,10 @@ service cloud.firestore {
     match /awardedMedals/{id} { allow read, write: if true; }
     match /brigades/{id} { allow read, write: if true; }
     
-    // Configuración de la App (Permisos, etc.)
-    match /app_config/{id} { allow read, write: if true; }
-    match /settings/{id} { allow read, write: if true; }
+    // Configuración de la App (PROTEGIDO)
+    match /app_config/{id} { allow read: if true; allow write: if false; }
+    match /settings/{id} { allow read: if true; allow write: if false; }
+    match /scoring_config/{id} { allow read: if true; allow write: if false; }
     match /voiceState/{id} { allow read, write: if true; }
     match /typingStatus/{id} { allow read, write: if true; }
     
@@ -31,13 +33,19 @@ service cloud.firestore {
     // Rastreo en tiempo real (active_locations)
     match /active_locations/{locationId} { allow read, write: if true; }
 
+    // Bardas pintadas — capa territorial del mapa
+    match /bardas_pintadas/{id} { allow read, write: if true; }
+
     // Mensajería entre usuarios (Conversaciones)
     match /conversations/{convId} { 
       allow read, write: if true; 
       match /messages/{msgId} { allow read, write: if true; }
     }
 
-    // Denegación por defecto para rutas no especificadas
+    // Diagnósticos y Pruebas de Conexión
+    match /_connection_test/{id} { allow read, write: if true; }
+
+    // Denegación por defecto
     match /{document=**} {
       allow read, write: if false;
     }

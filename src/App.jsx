@@ -4,6 +4,7 @@ import { useRole } from './context/RoleContext';
 
 // Pages
 import Login from './pages/Login';
+import MobileLogin from './pages/MobileLogin';
 import Dashboard from './pages/Dashboard';
 import Territory from './pages/Territory';
 import Communication from './pages/Communication';
@@ -24,16 +25,41 @@ import ExecutiveSummary from './pages/ExecutiveSummary';
 import AssetsCatalog from './pages/AssetsCatalog';
 
 import Onboarding from './pages/Onboarding';
+import SplashScreen from './components/SplashScreen';
+import { useState, useEffect } from 'react';
 
 function AuthGuard({ children }) {
-  const { currentUser } = useRole();
-  // Temporarily bypass auth guard for browser testing
+  const { currentUser, loading } = useRole();
+  
+  if (loading) {
+    return (
+      <div style={{ height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f1115' }}>
+        <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#800020', animation: 'spin 1s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (!currentUser || currentUser.uid === 'mock') {
+    return <Navigate to="/login" replace />;
+  }
+  
   return children;
 }
 
 function App() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
-    <BrowserRouter>
+    <>
+      <SplashScreen />
+      <BrowserRouter>
       <Routes>
         <Route path="/" element={<AuthGuard><MainLayout /></AuthGuard>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
@@ -57,9 +83,10 @@ function App() {
           <Route path="summary" element={<ExecutiveSummary />} />
           <Route path="assets" element={<AssetsCatalog />} />
         </Route>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={isMobile ? <MobileLogin /> : <Login />} />
       </Routes>
     </BrowserRouter>
+  </>
   );
 }
 

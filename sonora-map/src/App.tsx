@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { Layers, MapPin, Plus, Trash2, Menu, X, Activity, Filter, Users, BarChart3, TrendingUp, Sun, Moon, Globe, Mountain } from 'lucide-react';
+import { Layers, MapPin, Plus, Trash2, Menu, X, Activity, Filter, Users, BarChart3, TrendingUp, Sun, Moon, Globe, Mountain, Flag, Heart, Shield, Paintbrush } from 'lucide-react';
 import HeatmapLayer from './HeatmapLayer';
 import { db } from './firebase';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc } from 'firebase/firestore';
 
 type MarkerState = 'completed' | 'in-progress' | 'pending';
 
@@ -35,10 +35,43 @@ interface ActiveLocation {
   status?: 'online' | 'offline';
 }
 
+interface Barda {
+  id: string;
+  lat: number;
+  lng: number;
+  address: string;
+  note: string;
+  reportedBy: string;
+  createdAt: string;
+  photoURL?: string;
+}
+
+interface PersonMarker {
+  id: string;
+  displayName: string;
+  surname?: string;
+  phone?: string;
+  role?: string;
+  sectionNumber?: string;
+  supportLevel?: string;
+  brigadeId?: string;
+  brigadeName?: string;
+  lat: number;
+  lng: number;
+  source?: string;
+}
+
 const statusColors: Record<MarkerState, string> = {
   'completed': '#22c55e', // green-500
   'in-progress': '#eab308', // yellow-500
   'pending': '#ef4444', // red-500
+};
+
+const SUPPORT_LEVEL_COLORS: Record<string, string> = {
+  'alto': '#22c55e',
+  'medio': '#eab308',
+  'bajo': '#f97316',
+  'default': '#06b6d4'
 };
 
 const MOCK_DISTRICTS = ['Sección 001', 'Sección 002', 'Sección 003', 'Sección 004'];
@@ -83,7 +116,6 @@ const createCustomIcon = (state: MarkerState) => {
 };
 
 const createLiveIcon = (role: string, customColor?: string) => {
-  // Use vibrant colors for live trackers (Uber-style)
   const color = customColor || (role.includes('Admin') ? '#ef4444' : '#3b82f6');
   return L.divIcon({
     className: 'live-tracking-icon',
@@ -97,6 +129,80 @@ const createLiveIcon = (role: string, customColor?: string) => {
     iconSize: [24, 24],
     iconAnchor: [12, 12],
   });
+};
+
+// --- New layer icons ---
+const createBardaIcon = () => {
+  return L.divIcon({
+    className: 'barda-icon',
+    html: `<svg width="30" height="36" viewBox="0 0 30 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(1px 3px 5px rgba(0,0,0,0.5));">
+      <rect x="3" y="4" width="3" height="30" rx="1.5" fill="#a855f7"/>
+      <path d="M6 4 L28 8 L28 20 L6 16 Z" fill="#ec4899" stroke="#be185d" stroke-width="1"/>
+      <text x="14" y="15" font-size="9" fill="white" font-weight="bold" text-anchor="middle">B</text>
+    </svg>`,
+    iconSize: [30, 36],
+    iconAnchor: [5, 36],
+    popupAnchor: [10, -36],
+  });
+};
+
+const createSimpatizanteIcon = (supportLevel?: string) => {
+  const color = (supportLevel && SUPPORT_LEVEL_COLORS[supportLevel]) || SUPPORT_LEVEL_COLORS.default;
+  const strokeColor = supportLevel === 'alto' ? '#166534' : supportLevel === 'medio' ? '#854d0e' : supportLevel === 'bajo' ? '#9a3412' : '#0e7490';
+
+  return L.divIcon({
+    className: 'simpatizante-icon',
+    html: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill: ${color}; filter: drop-shadow(1px 3px 5px rgba(0,0,0,0.45));">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+    </svg>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
+  });
+};
+
+const createBrigadistaIcon = () => {
+  return L.divIcon({
+    className: 'brigadista-icon',
+    html: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="fill: #f59e0b; filter: drop-shadow(1px 3px 5px rgba(0,0,0,0.45));">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+    </svg>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 28],
+    popupAnchor: [0, -28],
+  });
+};
+
+// Approximate centroids for section numbers (Sonora)
+// Used to place simpatizantes/brigadistas on map based on their sectionNumber
+const SECTION_CENTROIDS: Record<string, [number, number]> = {};
+let centroidsLoaded = false;
+const loadCentroids = async () => {
+  if (centroidsLoaded) return;
+  try {
+    const res = await fetch('/data/sections.json');
+    const data = await res.json();
+    if (data?.features) {
+      data.features.forEach((f: any) => {
+        const name = f.properties?.name || f.properties?.SECCION || '';
+        const secNum = String(name).replace(/\D/g, '').padStart(4, '0');
+        if (f.geometry?.coordinates) {
+          // Compute simple centroid from polygon
+          const coords = f.geometry.type === 'MultiPolygon'
+            ? f.geometry.coordinates[0][0]
+            : f.geometry.coordinates[0];
+          if (coords && coords.length > 0) {
+            let sumLat = 0, sumLng = 0;
+            coords.forEach((c: number[]) => { sumLng += c[0]; sumLat += c[1]; });
+            SECTION_CENTROIDS[secNum] = [sumLat / coords.length, sumLng / coords.length];
+          }
+        }
+      });
+    }
+    centroidsLoaded = true;
+  } catch (e) {
+    console.warn('Could not load section centroids:', e);
+  }
 };
 
 function ClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
@@ -120,6 +226,16 @@ export default function App() {
   const [showFederalDistricts, setShowFederalDistricts] = useState(false);
   const [showSonoraState, setShowSonoraState] = useState(true);
 
+  // NEW layer toggles
+  const [showBardas, setShowBardas] = useState(true);
+  const [showSimpatizantes, setShowSimpatizantes] = useState(false);
+  const [showBrigadistas, setShowBrigadistas] = useState(false);
+
+  // NEW layer data
+  const [bardas, setBardas] = useState<Barda[]>([]);
+  const [simpatizantes, setSimpatizantes] = useState<PersonMarker[]>([]);
+  const [brigadistas, setBrigadistas] = useState<PersonMarker[]>([]);
+
   const [sectionsData, setSectionsData] = useState<any>(null);
   const [localDistrictsData, setLocalDistrictsData] = useState<any>(null);
   const [federalDistrictsData, setFederalDistrictsData] = useState<any>(null);
@@ -134,6 +250,14 @@ export default function App() {
   const [filterCoordinator, setFilterCoordinator] = useState<string>('all');
 
   const [addingMode, setAddingMode] = useState(false);
+  const [bardaMode, setBardaMode] = useState(false);
+  const [bardaForm, setBardaForm] = useState<{
+    open: boolean;
+    address: string;
+    note: string;
+    lat: number | null;
+    lng: number | null;
+  }>({ open: false, address: '', note: '', lat: null, lng: null });
   const [mapStyle, setMapStyle] = useState('dark');
 
   const mapStyles = {
@@ -167,6 +291,9 @@ export default function App() {
     localStorage.setItem('sonora-map-markers', JSON.stringify(markers));
   }, [markers]);
 
+  // Load section centroids for geo-placement
+  useEffect(() => { loadCentroids(); }, []);
+
   // Firestore Subscription for Live Tracking
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'active_locations'), (snapshot) => {
@@ -177,6 +304,67 @@ export default function App() {
     }, (error) => {
       console.error("Firestore live tracking error:", error);
     });
+    return () => unsub();
+  }, []);
+
+  // Firestore Subscription for Bardas Pintadas
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'bardas_pintadas'), (snapshot) => {
+      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Barda[];
+      setBardas(data);
+    }, (err) => console.error('Bardas listener error:', err));
+    return () => unsub();
+  }, []);
+
+  // Firestore Subscription for Users (simpatizantes + brigadistas)
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const allUsers = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+
+      // Simpatizantes: captured via the form
+      const simps: PersonMarker[] = [];
+      const brigs: PersonMarker[] = [];
+
+      allUsers.forEach(u => {
+        const secNum = String(u.sectionNumber || '').padStart(4, '0');
+        const centroid = SECTION_CENTROIDS[secNum];
+        // Small random jitter so markers don't overlap
+        const jitter = () => (Math.random() - 0.5) * 0.008;
+        const lat = centroid ? centroid[0] + jitter() : 0;
+        const lng = centroid ? centroid[1] + jitter() : 0;
+        if (!centroid) return; // skip users without locatable section
+
+        if (u.source === 'capture_form') {
+          simps.push({
+            id: u.id,
+            displayName: u.displayName || 'Sin nombre',
+            surname: u.surname || '',
+            phone: u.phone,
+            sectionNumber: u.sectionNumber,
+            supportLevel: u.supportLevel,
+            source: u.source,
+            lat, lng,
+          });
+        }
+
+        if (u.brigadeId) {
+          brigs.push({
+            id: u.id,
+            displayName: u.displayName || 'Sin nombre',
+            surname: u.surname || '',
+            phone: u.phone,
+            role: u.role,
+            brigadeId: u.brigadeId,
+            brigadeName: u.brigadeName,
+            sectionNumber: u.sectionNumber,
+            lat, lng,
+          });
+        }
+      });
+
+      setSimpatizantes(simps);
+      setBrigadistas(brigs);
+    }, (err) => console.error('Users listener error:', err));
     return () => unsub();
   }, []);
 
@@ -192,7 +380,13 @@ export default function App() {
     if (showFederalDistricts && !federalDistrictsData) fetch('/data/federal-districts.json').then(r => r.json()).then(setFederalDistrictsData).catch(console.error);
   }, [showFederalDistricts, federalDistrictsData]);
 
-  const handleMapClick = (lat: number, lng: number) => {
+  const handleMapClick = async (lat: number, lng: number) => {
+    // Barda creation mode — store pending location in form
+    if (bardaMode) {
+      setBardaForm(prev => ({ ...prev, lat, lng }));
+      return;
+    }
+
     if (!addingMode) return;
     
     const newMarker: MapMarker = {
@@ -209,7 +403,38 @@ export default function App() {
     };
     
     setMarkers(prev => [...prev, newMarker]);
-    setAddingMode(false); // Disable adding mode after 1 placement
+    setAddingMode(false);
+  };
+
+  const handleDeleteBarda = async (bardaId: string) => {
+    try {
+      await deleteDoc(doc(db, 'bardas_pintadas', bardaId));
+    } catch (err) {
+      console.error('Error deleting barda:', err);
+    }
+  };
+
+  const handleSaveBarda = async () => {
+    if (!bardaForm.lat || !bardaForm.lng) return;
+    try {
+      await addDoc(collection(db, 'bardas_pintadas'), {
+        lat: bardaForm.lat,
+        lng: bardaForm.lng,
+        address: bardaForm.address.trim(),
+        note: bardaForm.note.trim() || 'Barda registrada',
+        reportedBy: 'Mapa Tracker',
+        createdAt: new Date().toISOString(),
+      });
+      setBardaForm({ open: false, address: '', note: '', lat: null, lng: null });
+      setBardaMode(false);
+    } catch (err) {
+      console.error('Error saving barda:', err);
+    }
+  };
+
+  const handleCancelBarda = () => {
+    setBardaForm({ open: false, address: '', note: '', lat: null, lng: null });
+    setBardaMode(false);
   };
 
   const updateMarker = (id: string, updates: Partial<MapMarker>) => {
@@ -342,6 +567,32 @@ export default function App() {
                 <span className="text-sm font-medium">Distritos Federales</span>
                 <input type="checkbox" className="w-4 h-4 accent-emerald-500" checked={showFederalDistricts} onChange={e => setShowFederalDistricts(e.target.checked)} />
               </label>
+
+              {/* New Layers */}
+              <div className="mt-3 pt-3 border-t border-slate-700/50">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1"><Paintbrush size={11}/> Inteligencia Territorial</div>
+              </div>
+              <label className="flex items-center justify-between p-2.5 bg-pink-500/10 rounded-lg cursor-pointer hover:bg-pink-500/20 transition border border-pink-500/20">
+                <span className="text-sm font-medium flex items-center gap-2"><Flag size={14} className="text-pink-400"/> Bardas Pintadas</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-pink-400 bg-pink-500/20 px-1.5 py-0.5 rounded-full">{bardas.length}</span>
+                  <input type="checkbox" className="w-4 h-4 accent-pink-500" checked={showBardas} onChange={e => setShowBardas(e.target.checked)} />
+                </div>
+              </label>
+              <label className="flex items-center justify-between p-2.5 bg-cyan-500/10 rounded-lg cursor-pointer hover:bg-cyan-500/20 transition border border-cyan-500/20">
+                <span className="text-sm font-medium flex items-center gap-2"><Heart size={14} className="text-cyan-400"/> Simpatizantes</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/20 px-1.5 py-0.5 rounded-full">{simpatizantes.length}</span>
+                  <input type="checkbox" className="w-4 h-4 accent-cyan-500" checked={showSimpatizantes} onChange={e => setShowSimpatizantes(e.target.checked)} />
+                </div>
+              </label>
+              <label className="flex items-center justify-between p-2.5 bg-amber-500/10 rounded-lg cursor-pointer hover:bg-amber-500/20 transition border border-amber-500/20">
+                <span className="text-sm font-medium flex items-center gap-2"><Shield size={14} className="text-amber-400"/> Brigadistas</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded-full">{brigadistas.length}</span>
+                  <input type="checkbox" className="w-4 h-4 accent-amber-500" checked={showBrigadistas} onChange={e => setShowBrigadistas(e.target.checked)} />
+                </div>
+              </label>
             </div>
           </div>
 
@@ -377,9 +628,75 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 mt-auto">
+          <div className="flex flex-col gap-3 mt-auto">
             <button 
-              onClick={() => { setAddingMode(!addingMode); setIsMobileMenuOpen(false); }}
+              onClick={() => {
+                const opening = !bardaForm.open;
+                setBardaForm({ open: opening, address: '', note: '', lat: null, lng: null });
+                setBardaMode(opening);
+                setAddingMode(false);
+                setIsMobileMenuOpen(false);
+              }}
+              className={`flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition ${
+                bardaForm.open ? 'bg-pink-600 text-white shadow-lg shadow-pink-900/50 animate-pulse' : 'bg-pink-600/80 hover:bg-pink-500 text-white'
+              }`}
+            >
+              <Flag size={18} />
+              {bardaForm.open ? 'Cancelar Barda' : 'Registrar Barda'}
+            </button>
+
+            {/* Barda Registration Form */}
+            {bardaForm.open && (
+              <div className="bg-slate-900/80 border border-pink-500/30 rounded-xl p-4 flex flex-col gap-3 animate-in slide-in-from-bottom">
+                <div className="text-xs font-bold uppercase tracking-wider text-pink-400 flex items-center gap-2">
+                  <Flag size={12} /> Nueva Barda Pintada
+                </div>
+                <input
+                  type="text"
+                  placeholder="Dirección / Ubicación"
+                  value={bardaForm.address}
+                  onChange={e => setBardaForm(prev => ({ ...prev, address: e.target.value }))}
+                  className="w-full p-2.5 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white placeholder-slate-500 outline-none focus:border-pink-500 transition"
+                />
+                <textarea
+                  placeholder="Nota (opcional)"
+                  value={bardaForm.note}
+                  onChange={e => setBardaForm(prev => ({ ...prev, note: e.target.value }))}
+                  rows={2}
+                  className="w-full p-2.5 bg-slate-800 border border-slate-600 rounded-lg text-sm text-white placeholder-slate-500 outline-none focus:border-pink-500 transition resize-none"
+                />
+                <div className={`text-xs flex items-center gap-2 p-2 rounded-lg ${
+                  bardaForm.lat ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-slate-800 text-slate-500 border border-slate-700'
+                }`}>
+                  <MapPin size={14} />
+                  {bardaForm.lat
+                    ? `📍 Ubicación: ${bardaForm.lat.toFixed(5)}, ${bardaForm.lng?.toFixed(5)}`
+                    : '👆 Haz clic en el mapa para ubicar'
+                  }
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCancelBarda}
+                    className="flex-1 py-2 rounded-lg text-sm font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveBarda}
+                    disabled={!bardaForm.lat}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-1.5 ${
+                      bardaForm.lat
+                        ? 'bg-pink-600 text-white hover:bg-pink-500 shadow-lg shadow-pink-900/30'
+                        : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <Flag size={14} /> Guardar
+                  </button>
+                </div>
+              </div>
+            )}
+            <button 
+              onClick={() => { setAddingMode(!addingMode); setBardaMode(false); setIsMobileMenuOpen(false); }}
               className={`flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition ${
                 addingMode ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50 animate-pulse' : 'bg-blue-600 hover:bg-blue-500 text-white'
               }`}
@@ -595,7 +912,7 @@ export default function App() {
           ))}
 
           {/* Live Tracking Markers */}
-          {activeLocations.map((loc) => (
+          {showBrigadistas && activeLocations.map((loc) => (
             <Marker
               key={loc.userId}
               position={[loc.lat, loc.lng]}
@@ -616,6 +933,97 @@ export default function App() {
               </Popup>
             </Marker>
           ))}
+
+          {/* ========== BARDAS PINTADAS ========== */}
+          {showBardas && bardas.map((barda) => (
+            <Marker
+              key={`barda-${barda.id}`}
+              position={[barda.lat, barda.lng]}
+              icon={createBardaIcon()}
+            >
+              <Popup minWidth={220}>
+                <div style={{ fontFamily: 'system-ui, sans-serif', minWidth: 200 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, borderBottom: '2px solid #ec4899', paddingBottom: 6 }}>
+                    <span style={{ fontSize: 18 }}>🎨</span>
+                    <strong style={{ color: '#be185d', fontSize: 14 }}>Barda Pintada</strong>
+                  </div>
+                  {barda.address && <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>📍 {barda.address}</div>}
+                  {barda.note && <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>📝 {barda.note}</div>}
+                  <div style={{ fontSize: 10, color: '#9ca3af', marginBottom: 4 }}>Reportada por: {barda.reportedBy || 'Sistema'}</div>
+                  <div style={{ fontSize: 10, color: '#9ca3af' }}>📅 {barda.createdAt ? new Date(barda.createdAt).toLocaleDateString('es-MX') : '—'}</div>
+                  <button
+                    onClick={() => handleDeleteBarda(barda.id)}
+                    style={{ marginTop: 8, width: '100%', padding: '4px 0', background: '#fef2f2', color: '#dc2626', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                  >🗑 Eliminar</button>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* ========== SIMPATIZANTES ========== */}
+          {showSimpatizantes && simpatizantes.map((s) => (
+            <Marker
+              key={`simp-${s.id}`}
+              position={[s.lat, s.lng]}
+              icon={createSimpatizanteIcon(s.supportLevel)}
+            >
+              <Popup minWidth={200}>
+                <div style={{ fontFamily: 'system-ui, sans-serif', minWidth: 190 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, borderBottom: '2px solid #06b6d4', paddingBottom: 6 }}>
+                    <span style={{ fontSize: 16 }}>🤝</span>
+                    <strong style={{ color: '#0e7490', fontSize: 13 }}>Simpatizante</strong>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#1f2937', fontWeight: 600 }}>{s.displayName} {s.surname || ''}</div>
+                  {s.phone && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>📱 {s.phone}</div>}
+                  {s.sectionNumber && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>🗳 Sección: {s.sectionNumber}</div>}
+                  {s.supportLevel && <div style={{ fontSize: 11, marginTop: 4 }}>
+                    Nivel: <span style={{ fontWeight: 700, color: s.supportLevel === 'alto' ? '#22c55e' : s.supportLevel === 'medio' ? '#eab308' : '#f97316' }}>
+                      {s.supportLevel === 'alto' ? '🟢 Alto' : s.supportLevel === 'medio' ? '🟡 Medio' : '🟠 Bajo'}
+                    </span>
+                  </div>}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* ========== BRIGADISTAS ========== */}
+          {showBrigadistas && brigadistas.map((b) => (
+            <Marker
+              key={`brig-${b.id}`}
+              position={[b.lat, b.lng]}
+              icon={createBrigadistaIcon()}
+            >
+              <Popup minWidth={200}>
+                <div style={{ fontFamily: 'system-ui, sans-serif', minWidth: 190 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, borderBottom: '2px solid #f59e0b', paddingBottom: 6 }}>
+                    <span style={{ fontSize: 16 }}>🛡️</span>
+                    <strong style={{ color: '#92400e', fontSize: 13 }}>Brigadista</strong>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#1f2937', fontWeight: 600 }}>{b.displayName} {b.surname || ''}</div>
+                  {b.role && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>🎖 {b.role}</div>}
+                  {b.brigadeName && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>🏴 {b.brigadeName}</div>}
+                  {b.sectionNumber && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>🗳 Sección: {b.sectionNumber}</div>}
+                  {b.phone && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>📱 {b.phone}</div>}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* Preview marker for pending barda placement */}
+          {bardaForm.lat && bardaForm.lng && (
+            <Marker
+              key="barda-preview"
+              position={[bardaForm.lat, bardaForm.lng]}
+              icon={createBardaIcon()}
+            >
+              <Popup>
+                <div style={{ fontFamily: 'system-ui, sans-serif', textAlign: 'center', padding: 4 }}>
+                  <strong style={{ color: '#ec4899' }}>📍 Nueva Barda</strong>
+                  <div style={{ fontSize: 11, color: '#6b7280', marginTop: 4 }}>Confirma en el panel lateral</div>
+                </div>
+              </Popup>
+            </Marker>
+          )}
         </MapContainer>
         
         {/* Overlay Toast when adding mode is active */}
@@ -625,6 +1033,15 @@ export default function App() {
             Selecciona la ubicación
           </div>
         )}
+        {bardaMode && !bardaForm.lat && (
+          <div className="absolute bottom-10 md:top-6 md:bottom-auto left-1/2 -translate-x-1/2 z-[1000] bg-pink-600 text-white px-6 py-3 rounded-full font-medium shadow-xl flex items-center gap-2 animate-bounce whitespace-nowrap text-sm md:text-base">
+            <Flag size={20} />
+            Haz clic en el mapa para ubicar la barda
+          </div>
+        )}
+
+        {/* Preview marker for pending barda location */}
+        {/* Note: this is rendered outside MapContainer so we use a positioned div */}
       </div>
     </div>
   );

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JYD13XKVZG"></script>
+    <script>
+     if (window.location.hostname == "localhost") {
+       console.log('deshabilitanto google analytics');
+       window['ga-disable-G-JYD13XKVZG'] = true;
+     }
+     window.dataLayer = window.dataLayer || [];
+     function gtag(){dataLayer.push(arguments);}
+     gtag('js', new Date());
+
+     gtag('config', 'G-JYD13XKVZG', {
+       cookie_domain: 'movilizason.mx',
+       cookie_flags: 'SameSite=None;Secure'
+     });
+    </script>
+    <script>if(!(window.fetch&&Object.entries&&Object.keys&&Object.values&&window.Promise&&[].includes&&Object.assign&&window.Map)){document.write('<script src="https://polyfill.io/v3/polyfill.min.js?features=default%2Cfetch%2CObject.values%2CObject.keys%2CObject.entries"></scr'+'ipt>')}</script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Distribución Distrital | Oblivion Inc.</title>
+    
+    <!-- Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Roboto+Slab:wght@300;400;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="./css/index.css">
+    <script type="text/javascript" src="./js/index.js"></script>
+    <link rel="stylesheet" href="./css/distribucion-distrital/index.css">
+    <link rel="shortcut icon" href="./img/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="./img/favicon.ico" type="image/x-icon">
+    <script type="text/javascript" src="./lib/phaser.min.js"></script>
+  </head>
+  <body>
+    <header class="toptitle">
+      <div class="header-left">
+        <a href="./index.html"><img src="./img/defensa-elecciones-2021-alt.png" alt="Logo" /></a>
+      </div>
+      <h1>Distribución Distrital</h1>
+      <div class="header-right">
+        <a href="./index.html" class="back-link">Inicio</a>
+      </div>
+    </header>
+
+    <main class="page-container">
+      <div id="resultado">
+        <h2 class="section-subtitle">Datos del Distrito Seleccionado</h2>
+        <div id="data-entries" class="renglones">
+          <div class="renglon">
+            <span class="etiqueta">D. Fed</span>
+            <span id="distrito" class="distrito">xxxx</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">D. Loc</span>
+            <span id="dels" class="distrito">xxxx</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Municipios</span>
+            <span id="municipios" class="distrito">xxxx</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Secc. Totales</span>
+            <span id="secciones" class="distrito">xxxx</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Secc. Urb</span>
+            <span id="urbanas" class="distrito">xxxx</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Secc. No Urb</span>
+            <span id="nourbanas" class="distrito">xxxx</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Básicas</span>
+            <span id="casbasicas" class="distrito">xxxx</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Contiguas</span>
+            <span id="casconti" class="distrito">xxxx</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Extr.</span>
+            <span id="casextr" class="distrito">xxxx</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Esp.</span>
+            <span id="casesp" class="distrito">xxxx</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Padrón</span>
+            <span id="lnominal" class="distrito">xxxx</span>
+          </div>
+        </div>
+
+        <h2 class="section-subtitle">Totales del Estado (Resumen General)</h2>
+        <div id="state-totals" class="renglones totals-row">
+          <div class="renglon">
+            <span class="etiqueta">Total D. Fed</span>
+            <span class="distrito highlight">7</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Total D. Loc</span>
+            <span class="distrito highlight">21</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Municipios</span>
+            <span class="distrito highlight">72</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Secciones</span>
+            <span class="distrito highlight">2,828</span>
+          </div>
+          <div class="renglon">
+            <span class="etiqueta">Lista Nominal</span>
+            <span class="distrito highlight">2,290,980</span>
+          </div>
+        </div>
+
+        <div id="distribucion-distrital">
+          <script type="text/javascript" src="./js/distribucion-distrital/LoadingScene.js"></script>
+          <script type="text/javascript" src="./js/distribucion-distrital/MapScene.js"></script>
+          <script type="text/javascript" src="./js/distribucion-distrital/index.js"></script>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer-simple">
+      <p>&copy; 2026 Oblivion Inc. | Inteligencia electoral estatal</p>
+    </footer>
+  </body>
+</html>

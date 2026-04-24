@@ -165,10 +165,8 @@ export default function Tasks() {
   return (
     <div className="animate-fade-in flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
       <div className="flex items-center justify-between" style={{ marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Gestión de Tareas</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Organización operativa de campo</p>
-        </div>
+          <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Gestión de Tareas Operativas</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Inteligencia electoral estatal</p>
         
         <div className="flex gap-3">
           {isAdmin && (

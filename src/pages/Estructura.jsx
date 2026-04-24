@@ -568,12 +568,10 @@ export default function Estructura() {
         <div>
           <h1 style={{ fontSize: '1.5rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <MapPin size={24} color="var(--color-primary-light)" />
-            Estructura Territorial
+            Estructura Territorial y Enlaces
             {isSyncing && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '1rem' }} className="animate-pulse">Cargando...</span>}
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Coordinación táctica de Distritos y Secciones via Comando Central.
-          </p>
+          <p className="page-subtitle">Inteligencia electoral estatal</p>
         </div>
         <div className="flex gap-2">
           {role === ROLES.SUPER_ADMIN && (

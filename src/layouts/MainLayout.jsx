@@ -122,6 +122,7 @@ export default function MainLayout() {
           <Shield className="logo-icon" />
           <span className="logo-text">MovilizaSon</span>
         </div>
+        <div className="sidebar-tagline">Inteligencia electoral estatal</div>
         <div className="flex items-center gap-2">
           <button 
             className="sidebar-bell-btn" 

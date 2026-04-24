@@ -161,7 +161,7 @@ export default function Commitments() {
           </div>
           <div>
             <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Compromisos Ciudadanos</h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Vínculo Social y Apoyo Territorial</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Inteligencia electoral estatal</p>
           </div>
         </div>
 

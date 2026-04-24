@@ -42,6 +42,16 @@
   letter-spacing: -0.02em;
 }
 
+.sidebar-tagline {
+  font-size: 0.62rem;
+  color: var(--color-primary-light);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-top: -4px;
+  opacity: 0.85;
+}
+
 .logo-badge {
   font-size: 0.65rem;
   background-color: var(--color-primary);
@@ -97,7 +107,8 @@
 }
 
 .nav-item.active {
-  background-color: rgba(128, 0, 32, 0.15); /* primary with opacity */
+  background-color: rgba(128, 0, 32, 0.15);
+  /* primary with opacity */
   color: var(--color-primary-light);
   border-left: 3px solid var(--color-primary);
 }
@@ -264,15 +275,15 @@
   .sidebar {
     display: none;
   }
-  
+
   .mobile-header {
     display: flex;
   }
-  
+
   .bottom-nav {
     display: flex;
   }
-  
+
   .page-container {
     padding: var(--space-4);
     padding-bottom: calc(60px + env(safe-area-inset-bottom) + var(--space-4));
@@ -305,10 +316,12 @@
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
   }
+
   70% {
     transform: scale(1);
     box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
   }
+
   100% {
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
@@ -320,13 +333,17 @@
     box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
     color: var(--text-secondary);
   }
+
   50% {
-    color: #f97316; /* Orange color */
+    color: #f97316;
+    /* Orange color */
     transform: scale(1.1);
   }
+
   70% {
     box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
   }
+
   100% {
     box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
     color: var(--text-secondary);
@@ -349,7 +366,8 @@
   top: 0;
   left: 0;
   height: 100vh;
-  width: 24px; /* Thin hover trigger strip */
+  width: 24px;
+  /* Thin hover trigger strip */
   z-index: 900;
 }
 
@@ -382,8 +400,15 @@
 }
 
 @keyframes tab-glow {
-  0%, 100% { box-shadow: 2px 0 12px rgba(0, 0, 0, 0.3); }
-  50% { box-shadow: 2px 0 20px rgba(128, 0, 32, 0.4); }
+
+  0%,
+  100% {
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.3);
+  }
+
+  50% {
+    box-shadow: 2px 0 20px rgba(128, 0, 32, 0.4);
+  }
 }
 
 /* Hide the tab when sidebar is revealed */
@@ -402,7 +427,7 @@
   height: 100vh;
   transform: translateX(-100%);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.3s ease;
+    box-shadow 0.3s ease;
   box-shadow: none;
   z-index: 901;
   pointer-events: none;
@@ -414,4 +439,3 @@
   box-shadow: 8px 0 32px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
 }
-

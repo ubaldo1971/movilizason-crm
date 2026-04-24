@@ -11,6 +11,7 @@ import {
   RefreshCw, Check, SwitchCamera, XCircle, Wifi, WifiOff,
   CreditCard, Sparkles, Zap
 } from 'lucide-react';
+import { geocodeAddress } from '../services/geocodingService';
 import './Capture.css';
 
 const SUPPORT_LEVELS = [
@@ -368,6 +369,27 @@ export default function Capture() {
       const pin = generateRandom6DigitPin();
       const docId = `cap_${normalizedPhone}_${Date.now()}`;
 
+      // Geocode address if provided
+      let lat = null;
+      let lng = null;
+      let geocoded = false;
+
+      if (form.address.trim()) {
+        try {
+          const geoResult = await geocodeAddress(form.address.trim(), form.colonia.trim());
+          if (geoResult.success) {
+            lat = geoResult.lat;
+            lng = geoResult.lng;
+            geocoded = true;
+            console.log('📍 Direccion geocodificada:', lat, lng);
+          } else {
+            console.warn('⚠️ No se pudo geocodificar la dirección:', geoResult.error);
+          }
+        } catch (e) {
+          console.error('❌ Error en proceso de geocodificación:', e);
+        }
+      }
+
       const userData = {
         displayName: form.displayName.trim(),
         surname: form.surname.trim(),
@@ -375,6 +397,8 @@ export default function Capture() {
         address: form.address.trim(),
         colonia: form.colonia.trim(),
         sectionNumber: form.sectionNumber.trim(),
+        lat,
+        lng,
         supportLevel: form.supportLevel,
         notes: form.notes.trim(),
         photos: form.photos.map((p, i) => ({ id: `photo_${i}`, dataUrl: p })),
@@ -400,7 +424,7 @@ export default function Capture() {
         ...prev.slice(0, 9)
       ]);
 
-      showToast('success', `¡${userData.displayName} registrado exitosamente!`);
+      showToast('success', `¡${userData.displayName} registrado exitosamente! ${geocoded ? '📍 Ubicado en el mapa.' : '🏠 Ubicado por sección.'}`);
       setForm({ ...INITIAL_FORM });
       formRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -472,7 +496,7 @@ export default function Capture() {
             </div>
             <div>
               <h1 className="capture-header__title">Captura Rápida</h1>
-              <p className="capture-header__subtitle">Registro de simpatizantes en campo</p>
+              <p className="capture-header__subtitle">Inteligencia electoral estatal</p>
             </div>
           </header>
 

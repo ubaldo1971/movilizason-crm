@@ -1,0 +1,142 @@
+.mobile-login-container {
+  min-height: 100vh;
+  width: 100vw;
+  background-color: #000000;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 1.5rem;
+  overflow-y: auto;
+  font-family: 'Inter', sans-serif;
+}
+
+.mobile-login-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  animation: fadeInDown 1s ease-out;
+}
+
+.mobile-login-logo {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  filter: drop-shadow(0 0 15px rgba(128, 16, 32, 0.4));
+}
+
+.mobile-login-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.5rem;
+}
+
+.mobile-login-subtitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #801020;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.pin-display {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 3rem;
+}
+
+.pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.pin-dot.filled {
+  background-color: #801020;
+  border-color: #801020;
+  box-shadow: 0 0 15px rgba(128, 16, 32, 0.6);
+  transform: scale(1.2);
+}
+
+.keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.keypad-btn {
+  width: 75px;
+  height: 75px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.keypad-btn:active {
+  background: rgba(128, 16, 32, 0.2);
+  border-color: rgba(128, 16, 32, 0.4);
+  transform: scale(0.92);
+}
+
+.keypad-number {
+  font-size: 1.75rem;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.keypad-letters {
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.1em;
+  margin-top: -2px;
+}
+
+.keypad-btn.action {
+  background: transparent;
+  border: none;
+}
+
+.keypad-btn.action:active {
+  background: transparent;
+  opacity: 0.6;
+}
+
+.mobile-login-error {
+  margin-top: 2rem;
+  text-align: center;
+  color: #ef4444;
+  font-size: 0.85rem;
+  min-height: 1.5rem;
+  animation: shake 0.4s ease-in-out;
+}
+
+.mobile-login-footer {
+  margin-top: auto;
+  padding-top: 2rem;
+  text-align: center;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.2);
+  line-height: 1.6;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}

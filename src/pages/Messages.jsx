@@ -514,7 +514,10 @@ export default function Messages() {
         {/* Header with search and actions */}
         <div className="messages-sidebar-header">
           <div className="messages-header-top">
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0 }}>Centro de Mensajes</h2>
+            <div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0 }}>Centro de Mensajería</h2>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>Inteligencia electoral estatal</p>
+            </div>
             <div className="flex gap-2">
               <button 
                 className="btn btn-secondary flex items-center gap-1" 

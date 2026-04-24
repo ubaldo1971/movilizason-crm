@@ -147,8 +147,8 @@ export default function Reports() {
            <AlertTriangle color="white" size={24} />
         </div>
         <div>
-          <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Reporte Ciudadano</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Captura de quejas y necesidades territoriales</p>
+           <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Reportes Ciudadanos</h1>
+           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Inteligencia electoral estatal</p>
         </div>
       </div>
 

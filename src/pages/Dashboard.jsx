@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRole } from '../context/RoleContext';
-import { Users, MapPin, CheckCircle, TrendingUp, AlertCircle, Plus, Trash2, Edit2, Calendar, User, Camera, Check } from 'lucide-react';
+import { Users, MapPin, CheckCircle, TrendingUp, AlertCircle, Plus, Trash2, Edit2, Calendar, User, Camera, Check, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, deleteDoc, doc, ref, uploadBytes, getDownloadURL } from '../lib/dbService';
 import { db, storage } from '../firebaseConfig';
@@ -230,7 +230,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between" style={{ marginBottom: '2rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>Hola, {currentUser?.displayName || 'Usuario'}</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Rol activo: <strong style={{color: 'var(--color-primary-light)'}}>{role || 'Consultor'}</strong></p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Inteligencia electoral estatal | Rol: <strong style={{color: 'var(--color-primary-light)'}}>{role || 'Consultor'}</strong></p>
         </div>
         { (role === ROLES.SUPER_ADMIN || role === ROLES.ADMIN_ESTATAL || role === ROLES.COORD_DISTRITAL_FED) && (
           <button 

@@ -1,0 +1,284 @@
+/* PREMIUM DESIGN SYSTEM - EL SAHUARO */
+
+:root {
+  --primary-gradient: linear-gradient(135deg, #b5261e 0%, #772017 100%);
+  --accent-gold: #ffcc00;
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-shadow: 0 8px 32px 0 rgba(181, 38, 30, 0.15);
+  --card-border: 1px solid rgba(255, 255, 255, 0.18);
+  --text-dark: #262b2d;
+  --text-muted: #6a7e85;
+}
+
+body {
+  background: #f0f2f5;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+.toptitle {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  background: var(--primary-gradient) !important;
+  padding: 0.75rem 2rem !important;
+  border-bottom: none !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  width: 100%;
+}
+
+.toptitle h1 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: 1.4rem !important;
+  text-transform: uppercase;
+  margin: 0 !important;
+  flex-grow: 1;
+  text-align: center;
+}
+
+.header-left img {
+  height: 25px !important;
+  width: auto;
+  filter: brightness(0) invert(1);
+  transition: opacity 0.2s;
+}
+
+.header-left img:hover {
+  opacity: 0.8;
+}
+
+.header-right {
+  justify-content: flex-end;
+}
+
+.back-link {
+  color: white;
+  text-decoration: none;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+}
+
+.back-link:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: white;
+}
+
+.warning {
+  background: #fff3cd !important;
+  border-left: 5px solid #ffcc00 !important;
+  color: #856404 !important;
+  font-size: 0.85rem;
+  padding: 0.75rem 1.5rem !important;
+  margin: 1rem auto !important;
+  max-width: 1200px;
+  border-radius: 0.5rem;
+  width: 90%;
+}
+
+.page-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.inputs {
+  background: white;
+  padding: 2.5rem 2rem;
+  border-radius: 1.5rem;
+  box-shadow: var(--glass-shadow);
+  max-width: 45rem;
+  margin: 2rem auto !important;
+  border: 1px solid #e1e4e8;
+}
+
+.inputs label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+  display: block;
+}
+
+.search-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+input[type=text] {
+  padding: 0.85rem 1.5rem;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  border: 2px solid #edeff2;
+  border-radius: 1rem;
+  text-align: center;
+  width: 12rem;
+  background: #f8fafc;
+  font-weight: 800;
+  font-size: 1.6rem;
+  color: var(--text-dark);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+input[type=text]:focus {
+  outline: none;
+  border-color: #b5261e;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(181, 38, 30, 0.1);
+  transform: scale(1.05);
+}
+
+.button, input[type=submit] {
+  background: var(--primary-gradient) !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.9rem 2.5rem !important;
+  border-radius: 1rem !important;
+  font-weight: 700 !important;
+  font-size: 1.1rem !important;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(181, 38, 30, 0.3);
+}
+
+.button:hover, input[type=submit]:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(181, 38, 30, 0.4);
+}
+
+.infobox {
+  display: none;
+  border-radius: 1rem;
+  padding: 1.25rem 2rem;
+  margin: 1.5rem auto;
+  max-width: 45rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  text-align: center;
+}
+
+.alert-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.alert-info {
+  background: #e0f2fe;
+  color: #075985;
+  border: 1px solid #bae6fd;
+}
+
+#resultado {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: 100% !important;
+  gap: 0 !important;
+  background: transparent !important;
+}
+
+.renglones {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  flex-wrap: wrap !important;
+  width: 100% !important;
+  margin: 0.5rem 0 1rem 0 !important;
+  padding: 0 !important;
+}
+
+.renglon {
+  background: white !important;
+  padding: 0.4rem 1rem !important;
+  border-radius: 2rem !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06) !important;
+  border: 1px solid #e2e8f0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  min-width: unset !important;
+  flex-grow: 0 !important;
+  white-space: nowrap !important;
+}
+
+.etiqueta {
+  color: var(--text-muted) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  font-size: 0.55rem !important;
+  font-weight: 800 !important;
+  margin: 0 !important;
+}
+
+.distrito {
+  font-size: 0.9rem !important;
+  font-weight: 800 !important;
+  color: #b5261e !important;
+  margin: 0 !important;
+}
+
+#secmap-container {
+  width: 100% !important;
+  display: block !important;
+  margin-top: 0 !important;
+}
+
+#secmap {
+  height: calc(100vh - 350px) !important;
+  min-height: 500px !important;
+  width: 100% !important;
+  border-radius: 1rem !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1) !important;
+  border: 4px solid white !important;
+  background: #f1f5f9 !important;
+}
+
+@media all and (min-width:1366px) {
+  #secmap { height: 75vh; }
+}
+
+.footer-simple {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  border-top: 1px solid #e1e4e8;
+  width: 100%;
+  margin-top: 4rem;
+}
+
+/* Leaflet Customizations */
+.leaflet-container {
+  font-family: 'Inter', sans-serif !important;
+}
+
+.leaflet-tooltip {
+  background: var(--primary-gradient) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 0.75rem !important;
+  padding: 0.5rem 1rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2) !important;
+}
+
+

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Peer from 'peerjs';
 import { 
   collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc,
-  query, where, addDoc, orderBy, serverTimestamp
+  query, where, addDoc, orderBy, serverTimestamp, arrayUnion, arrayRemove
 } from '../lib/dbService';
 import { db } from '../firebaseConfig';
 
@@ -346,18 +346,66 @@ export function useCommunication() {
     }
   }, [localStream]);
 
-  const sendMessage = useCallback(async (userId, userName, channelId, text) => {
-    if (!text.trim() || !channelId) return;
+  const sendMessage = useCallback(async (userId, userName, channelId, text, media = null, forwardInfo = null) => {
+    if (!text.trim() && !media) return;
     try {
       await addDoc(collection(db, 'messages'), {
         channelId,
         userId,
         userName,
         text,
-        createdAt: serverTimestamp()
+        media, // { url, type, name, size }
+        forwardInfo, // { fromChannelName, fromUserName }
+        createdAt: serverTimestamp(),
+        reactions: {} // emoji: [uids]
       });
     } catch (e) {
       console.error("Error sending message:", e);
+    }
+  }, []);
+
+  const addReaction = useCallback(async (messageId, emoji, userId) => {
+    if (!messageId || !emoji || !userId) return;
+    try {
+      const msgRef = doc(db, 'messages', messageId);
+      await updateDoc(msgRef, {
+        [`reactions.${emoji}`]: arrayUnion(userId)
+      });
+    } catch (e) {
+      console.error("Error adding reaction:", e);
+    }
+  }, []);
+
+  const removeReaction = useCallback(async (messageId, emoji, userId) => {
+    if (!messageId || !emoji || !userId) return;
+    try {
+      const msgRef = doc(db, 'messages', messageId);
+      await updateDoc(msgRef, {
+        [`reactions.${emoji}`]: arrayRemove(userId)
+      });
+    } catch (e) {
+      console.error("Error removing reaction:", e);
+    }
+  }, []);
+
+  const forwardMessage = useCallback(async (msg, targetChannelId, currentUserId, currentUserName) => {
+    if (!msg || !targetChannelId) return;
+    try {
+      await addDoc(collection(db, 'messages'), {
+        channelId: targetChannelId,
+        userId: currentUserId,
+        userName: currentUserName,
+        text: msg.text,
+        media: msg.media,
+        forwardInfo: {
+          fromUserName: msg.userName,
+          fromChannelId: msg.channelId
+        },
+        createdAt: serverTimestamp(),
+        reactions: {}
+      });
+    } catch (e) {
+      console.error("Error forwarding message:", e);
     }
   }, []);
 
@@ -396,6 +444,9 @@ export function useCommunication() {
     toggleMute,
     toggleCamera,
     sendMessage,
-    setTypingStatus
+    setTypingStatus,
+    addReaction,
+    removeReaction,
+    forwardMessage
   };
 }

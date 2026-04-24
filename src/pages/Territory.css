@@ -635,3 +635,115 @@
   color: #94a3b8;
   font-style: italic;
 }
+
+/* ============================================================
+   NEW: Territorial Intelligence Layers
+   ============================================================ */
+
+/* Divider heading */
+.territory-layers-divider {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(51, 65, 85, 0.5);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* Colored layer items */
+.territory-layer--barda {
+  background: rgba(236, 72, 153, 0.08) !important;
+  border: 1px solid rgba(236, 72, 153, 0.2);
+}
+.territory-layer--barda:hover {
+  background: rgba(236, 72, 153, 0.18) !important;
+}
+
+.territory-layer--simp {
+  background: rgba(6, 182, 212, 0.08) !important;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+.territory-layer--simp:hover {
+  background: rgba(6, 182, 212, 0.18) !important;
+}
+
+.territory-layer--brig {
+  background: rgba(245, 158, 11, 0.08) !important;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+.territory-layer--brig:hover {
+  background: rgba(245, 158, 11, 0.18) !important;
+}
+
+/* Layer label with icon */
+.territory-layer-label-icon {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-pink { color: #f472b6; }
+.icon-cyan { color: #22d3ee; }
+.icon-amber { color: #fbbf24; }
+
+/* Right side (count + checkbox) */
+.territory-layer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.territory-layer-count {
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.territory-layer-count.pink {
+  color: #f472b6;
+  background: rgba(236, 72, 153, 0.15);
+}
+.territory-layer-count.cyan {
+  color: #22d3ee;
+  background: rgba(6, 182, 212, 0.15);
+}
+.territory-layer-count.amber {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+}
+
+/* Barda action button */
+.territory-action-btn.barda {
+  background: rgba(236, 72, 153, 0.8);
+}
+.territory-action-btn.barda:hover {
+  background: #ec4899;
+}
+.territory-action-btn.barda.adding {
+  background: #ec4899;
+  box-shadow: 0 0 20px rgba(236, 72, 153, 0.5);
+  animation: territory-pulse 2s infinite;
+}
+
+/* Barda toast */
+.territory-toast.barda-toast {
+  background: #ec4899;
+}
+
+/* Custom icon fixes for new markers */
+.barda-icon,
+.simpatizante-icon,
+.brigadista-icon {
+  background: none !important;
+  border: none !important;
+}

@@ -1,0 +1,17 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Permitir acceso a archivos de chat solo a usuarios autenticados
+    match /chat_media/{channelId}/{fileName} {
+      allow read: if request.auth != null;
+      // Para escribir, debe ser autenticado y el archivo menor a 20MB
+      allow write: if request.auth != null 
+                   && request.resource.size < 20 * 1024 * 1024;
+    }
+    
+    // Reglas genéricas por defecto (Cerrado por seguridad)
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

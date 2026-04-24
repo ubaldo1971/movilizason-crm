@@ -39,7 +39,7 @@ export default function Login() {
             <Shield size={40} style={{ color: 'var(--color-primary)' }} />
           </div>
           <h1 style={{ fontSize: '2rem', fontWeight: '800', letterSpacing: '-0.025em', color: 'var(--text-primary)', margin: 0 }}>MovilizaSon</h1>
-          <p style={{ color: '#d4d8e0', fontSize: '0.9rem', fontWeight: '500' }}>Sistema de Control Territorial Operativo</p>
+          <p style={{ color: 'var(--color-primary-light)', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '0.25rem' }}>Inteligencia electoral estatal</p>
         </div>
 
         {error && (

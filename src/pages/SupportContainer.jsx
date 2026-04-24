@@ -86,8 +86,8 @@ export default function SupportContainer() {
     <div className="support-container-page animate-fade-in">
       <header className="page-header">
         <div className="flex-col">
-          <h1 className="page-title">Contenedor de Soporte Territorial</h1>
-          <p className="page-subtitle">Evidencia fotográfica y reportes de campo ({filteredEvidence.length})</p>
+          <h1 className="page-title">Soporte Territorial</h1>
+          <p className="page-subtitle">Inteligencia electoral estatal ({filteredEvidence.length})</p>
         </div>
         
         <div className="header-actions">
