@@ -160,7 +160,19 @@ export default function Performance() {
     return Object.values(userScores).sort((a, b) => b.totalPoints - a.totalPoints);
   };
 
-  const processedData = getProcessedScores();
+  const rawProcessedData = getProcessedScores();
+
+  // Inyectar un brigadista destacado de prueba (Mock)
+  const mockElite = {
+    id: 'mock-elite-1',
+    name: 'Roberto V.',
+    role: 'Brigadista Elite',
+    totalPoints: rawProcessedData.length > 0 ? rawProcessedData[0].totalPoints + 1500 : 12500,
+    tasksCompleted: 145,
+    photoUrl: 'https://i.pravatar.cc/150?img=11'
+  };
+
+  const processedData = [mockElite, ...rawProcessedData];
   const podium = processedData.slice(0, 3);
   const others = processedData; // We'll handle the list in the central panel
 
@@ -261,8 +273,13 @@ export default function Performance() {
                 <div className="podium-compact">
                   {podium.map((p, i) => (
                     <div key={p.id} className={`podium-slot p-slot-${i+1}`}>
-                      <div className="podium-avatar-mini">
-                        <User size={i === 0 ? 32 : 24} />
+                      <div className="podium-avatar-mini" style={p.photoUrl ? { backgroundImage: `url(${p.photoUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}>
+                        {!p.photoUrl && <User size={i === 0 ? 32 : 24} />}
+                        {i === 0 && (
+                          <div style={{ position: 'absolute', top: -12, background: '#fbbf24', borderRadius: '50%', padding: '4px', boxShadow: '0 0 10px rgba(251, 191, 36, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Trophy size={14} color="black" />
+                          </div>
+                        )}
                       </div>
                       <div style={{ fontWeight: 800, fontSize: '0.8rem' }}>{p.name.split(' ')[0]}</div>
                       <div style={{ color: 'var(--color-primary-light)', fontWeight: 900 }}>{p.totalPoints.toLocaleString()}</div>

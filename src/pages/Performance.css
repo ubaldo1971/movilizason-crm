@@ -80,7 +80,7 @@
   position: relative;
 }
 
-.p-slot-1 { order: 2; transform: translateY(-10px); }
+.p-slot-1 { order: 2; transform: translateY(-15px); z-index: 10; }
 .p-slot-2 { order: 1; opacity: 0.9; }
 .p-slot-3 { order: 3; opacity: 0.85; }
 
@@ -97,9 +97,9 @@
   position: relative;
 }
 
-.p-slot-1 .podium-avatar-mini { width: 72px; height: 72px; border-color: #fbbf24; }
-.p-slot-2 .podium-avatar-mini { border-color: #94a3b8; }
-.p-slot-3 .podium-avatar-mini { border-color: #cd7f32; }
+.p-slot-1 .podium-avatar-mini { width: 84px; height: 84px; border-width: 4px; border-color: #fbbf24; box-shadow: 0 0 20px rgba(251, 191, 36, 0.4); }
+.p-slot-2 .podium-avatar-mini { width: 60px; height: 60px; border-color: #94a3b8; }
+.p-slot-3 .podium-avatar-mini { width: 60px; height: 60px; border-color: #cd7f32; }
 
 /* User Stats Card */
 .user-glory-card {
